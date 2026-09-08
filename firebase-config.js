@@ -7,7 +7,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// Firebase configuration
+// ===========================================================
+// FIREBASE CONFIGURATION
+// ===========================================================
+
 const firebaseConfig = {
   apiKey: "AIzaSyARRzO1Hnkau_n-jhCBlkHqvl5p2_NcKEQ",
   authDomain: "sistempersuratantci.firebaseapp.com",
@@ -17,11 +20,20 @@ const firebaseConfig = {
   appId: "1:523809163124:web:b781a7d56391a1e3154e21"
 };
 
-// Initialize Firebase
+// ===========================================================
+// INITIALIZE FIREBASE
+// ===========================================================
+
 const app = initializeApp(firebaseConfig);
 
-// Firebase Authentication
+// ===========================================================
+// FIREBASE AUTHENTICATION
+// ===========================================================
+
 export const auth = getAuth(app);
 
-// Cloud Firestore
+// ===========================================================
+// CLOUD FIRESTORE
+// ===========================================================
+
 export const db = getFirestore(app);
