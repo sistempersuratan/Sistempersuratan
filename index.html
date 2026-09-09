@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masuk — Sistem Persuratan</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="login-page">
+
+  <div class="login-card">
+    <div class="login-mark">
+      <div class="seal">SP</div>
+      <div>
+        <div class="name">Sistem Persuratan</div>
+        <div class="sub">Template dokumen digital</div>
+      </div>
+    </div>
+
+    <h1>Masuk</h1>
+    <p class="lead">Gunakan akun yang diberikan admin untuk mengakses sistem.</p>
+
+    <div id="formError" class="form-error"></div>
+
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary" id="loginBtn">
+        <span id="loginBtnText">Masuk</span>
+      </button>
+    </form>
+
+    <p class="login-footnote">Lupa password? Hubungi admin sistem.</p>
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
+
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/login.js"></script>
+</body>
+</html>
