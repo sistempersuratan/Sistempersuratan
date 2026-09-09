@@ -52,9 +52,9 @@ form.addEventListener("submit", async (e) => {
     }
 
     if (profile.role === "admin") {
-      window.location.href = "/admin.html";
+      window.location.href = "admin.html";
     } else {
-      window.location.href = "/dashboard.html";
+      window.location.href = "dashboard.html";
     }
   } catch (error) {
     showFormError(mapAuthError(error));
