@@ -7,7 +7,7 @@ import { showToast } from "./ui.js";
 
 const userName = document.getElementById("userName");
 const userInitial = document.getElementById("userInitial");
-const logoutBtn = document.getElementById("logoutBtn");
+const logoutButtons = document.querySelectorAll(".js-logout");
 const statUsers = document.getElementById("statUsers");
 const statTemplates = document.getElementById("statTemplates");
 const statDocs = document.getElementById("statDocs");
@@ -26,11 +26,13 @@ requireAuth((user, profile) => {
   statDocsToday.textContent = "0";
 });
 
-logoutBtn.addEventListener("click", async () => {
-  try {
-    await logout();
-  } catch (error) {
-    console.error("Gagal logout:", error);
-    showToast("Gagal keluar. Coba lagi.", "error");
-  }
+logoutButtons.forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Gagal logout:", error);
+      showToast("Gagal keluar. Coba lagi.", "error");
+    }
+  });
 });
