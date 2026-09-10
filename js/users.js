@@ -33,7 +33,6 @@ const modalTitle = document.getElementById("userModalTitle");
 const form = document.getElementById("userForm");
 const formError = document.getElementById("userFormError");
 const docIdInput = document.getElementById("userDocId");
-const fName = document.getElementById("fName");
 const fUsername = document.getElementById("fUsername");
 const fEmail = document.getElementById("fEmail");
 const fPassword = document.getElementById("fPassword");
@@ -48,8 +47,8 @@ let usersCache = [];
 requireAuth((user, profile) => {
   if (!requireRole(profile.role, "admin")) return;
   currentAdminUid = user.uid;
-  userName.textContent = profile.name || user.email;
-  userInitial.textContent = (profile.name || user.email || "?").charAt(0).toUpperCase();
+  userName.textContent = profile.username || user.email;
+  userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
   loadUsers();
 });
 
@@ -70,23 +69,22 @@ async function loadUsers() {
   try {
     const snap = await getDocs(collection(db, "users"));
     usersCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    usersCache.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    usersCache.sort((a, b) => (a.username || "").localeCompare(b.username || ""));
     renderUsers();
   } catch (error) {
     console.error("Gagal memuat daftar user:", error);
-    tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
   }
 }
 
 function renderUsers() {
   if (usersCache.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Belum ada user.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Belum ada user.</td></tr>`;
     return;
   }
 
   tableBody.innerHTML = usersCache.map((u) => `
     <tr>
-      <td>${escapeHtml(u.name || "-")}</td>
       <td>${escapeHtml(u.username || "-")}</td>
       <td>${escapeHtml(u.email || "-")}</td>
       <td><span class="badge ${u.role === "admin" ? "admin" : "user"}">${u.role === "admin" ? "Admin" : "User"}</span></td>
@@ -131,7 +129,7 @@ async function toggleActive(userData) {
   }
   const nextActive = userData.active === false;
   const label = nextActive ? "mengaktifkan" : "menonaktifkan";
-  if (!confirm(`Yakin ingin ${label} user "${userData.name || userData.username}"?`)) return;
+  if (!confirm(`Yakin ingin ${label} user "${userData.username}"?`)) return;
 
   try {
     await updateDoc(doc(db, "users", userData.id), {
@@ -171,7 +169,6 @@ function openAddModal() {
 function openEditModal(userData) {
   modalTitle.textContent = "Edit User";
   docIdInput.value = userData.id;
-  fName.value = userData.name || "";
   fUsername.value = userData.username || "";
   fEmail.value = userData.email || "";
   fPassword.value = "";
@@ -206,12 +203,11 @@ form.addEventListener("submit", async (e) => {
   clearFormError();
 
   const isEdit = !!docIdInput.value;
-  const name = fName.value.trim();
   const username = fUsername.value.trim();
   const role = fRole.value;
 
-  if (!name || !username) {
-    showFormError("Nama dan username wajib diisi.");
+  if (!username) {
+    showFormError("Username wajib diisi.");
     return;
   }
 
@@ -235,7 +231,6 @@ form.addEventListener("submit", async (e) => {
 
     if (isEdit) {
       await updateDoc(doc(db, "users", docIdInput.value), {
-        name,
         username,
         role,
         updatedAt: serverTimestamp()
@@ -253,7 +248,6 @@ form.addEventListener("submit", async (e) => {
       const uid = await createAuthUserWithoutSwitchingSession(email, password);
 
       await setDoc(doc(db, "users", uid), {
-        name,
         username,
         email,
         role,
