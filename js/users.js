@@ -73,13 +73,13 @@ async function loadUsers() {
     renderUsers();
   } catch (error) {
     console.error("Gagal memuat daftar user:", error);
-    tableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="4" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
   }
 }
 
 function renderUsers() {
   if (usersCache.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Belum ada user.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="4" class="table-empty">Belum ada user.</td></tr>`;
     return;
   }
 
@@ -88,9 +88,9 @@ function renderUsers() {
       <td>${escapeHtml(u.username || "-")}</td>
       <td>${escapeHtml(u.email || "-")}</td>
       <td><span class="badge ${u.role === "admin" ? "admin" : "user"}">${u.role === "admin" ? "Admin" : "User"}</span></td>
-      <td><span class="badge ${u.active === false ? "inactive" : "user"}">${u.active === false ? "Nonaktif" : "Aktif"}</span></td>
       <td>
         <div class="row-actions">
+          <span class="badge ${u.active === false ? "inactive" : "user"}">${u.active === false ? "Nonaktif" : "Aktif"}</span>
           <button class="link-btn" data-action="edit" data-id="${u.id}">Edit</button>
           <button class="link-btn ${u.active === false ? "" : "danger"}" data-action="toggle" data-id="${u.id}">
             ${u.active === false ? "Aktifkan" : "Nonaktifkan"}
