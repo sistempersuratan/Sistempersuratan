@@ -61,16 +61,21 @@
         <p class="subtitle" id="formDescription"></p>
         <form id="documentForm"></form>
 
-       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-  <button class="btn" id="printBtn">Cetak</button>
-  <button class="btn" id="downloadPdfBtn">Download PDF</button>
-  <button class="btn" id="downloadWordBtn">Download Word</button>
-  <button class="btn" id="shareWaBtn">Kirim WA</button>
-  <button class="btn" id="shareEmailBtn">Kirim Email</button>
-  <button class="btn btn-primary" id="submitBtn" style="display:none;">Ajukan Rilis</button>
-  <button class="btn btn-primary admin-only" id="releaseBtn" style="display:none;">Setujui & Rilis</button>
-  <button class="btn admin-only" id="rejectBtn" style="display:none;">Tolak</button>
-</div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button type="button" class="btn" id="previewBtn">Pratinjau</button>
+          <button type="button" class="btn btn-primary" id="saveBtn">Simpan Dokumen</button>
+        </div>
+      </div>
+
+      <div class="panel" id="previewPanel" style="display:none; margin-top:16px;">
+        <h3>Pratinjau</h3>
+        <div id="previewArea" style="border:1px solid #e2e2e2; padding:24px; background:#fff; min-height:200px;"></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
+
   <script type="module" src="../js/firebase-config.js"></script>
   <script type="module" src="../js/create-document.js"></script>
 </body>
