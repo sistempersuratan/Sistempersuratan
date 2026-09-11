@@ -43,9 +43,19 @@ export async function login(email, password) {
   return signInWithEmailAndPassword(auth, email, password);
 }
 
+/**
+ * Prefix relatif untuk kembali ke root situs, tergantung kedalaman
+ * folder halaman saat ini. Supaya redirect tetap benar baik dari
+ * root (index.html, admin.html) maupun dari dalam pages/ (users.html, dst),
+ * di hosting mana pun (Netlify di root, GitHub Pages di subfolder repo).
+ */
+function pagePrefix() {
+  return window.location.pathname.includes("/pages/") ? "../" : "";
+}
+
 export async function logout() {
   await fbSignOut(auth);
-  window.location.href = "index.html";
+  window.location.href = pagePrefix() + "index.html";
 }
 
 export async function getUserProfile(uid) {
@@ -93,9 +103,9 @@ export function requireAuth(onReady) {
 export function requireRole(profileRole, requiredRole) {
   if (profileRole !== requiredRole) {
     if (profileRole === "admin") {
-      window.location.href = "admin.html";
+      window.location.href = pagePrefix() + "admin.html";
     } else {
-      window.location.href = "dashboard.html";
+      window.location.href = pagePrefix() + "dashboard.html";
     }
     return false;
   }
@@ -106,6 +116,6 @@ function redirectToLogin() {
   const path = window.location.pathname;
   const onLoginPage = path.endsWith("index.html") || path.endsWith("/");
   if (!onLoginPage) {
-    window.location.href = "index.html";
+    window.location.href = pagePrefix() + "index.html";
   }
 }
