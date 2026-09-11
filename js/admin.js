@@ -19,6 +19,7 @@ requireAuth((user, profile) => {
    userName.textContent = profile.username || user.email;
   userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
   // Placeholder — akan diisi query Firestore asli setelah STEP 2 (user management).
+  
   statUsers.textContent = "0";
   statTemplates.textContent = "0";
   statDocs.textContent = "0";
