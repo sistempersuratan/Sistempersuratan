@@ -4,6 +4,14 @@
 
 import { requireAuth, requireRole, logout } from "./auth.js";
 import { showToast } from "./ui.js";
+import { db } from "./firebase-config.js";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  getCountFromServer
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const greeting = document.getElementById("greeting");
 const userName = document.getElementById("userName");
@@ -15,15 +23,12 @@ const statMonthDocs = document.getElementById("statMonthDocs");
 
 requireAuth((user, profile) => {
   if (!requireRole(profile.role, "user")) return;
-  
+
   greeting.textContent = `Halo, ${profile.username || "Pengguna"}`;
   userName.textContent = profile.username || user.email;
   userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
-  
-  // Placeholder — akan diisi data asli setelah STEP 3-5 (template & dokumen).
-  statTemplates.textContent = "0";
-  statMyDocs.textContent = "0";
-  statMonthDocs.textContent = "0";
+
+  loadStats(user.uid);
 });
 
 logoutButtons.forEach((btn) => {
@@ -36,3 +41,31 @@ logoutButtons.forEach((btn) => {
     }
   });
 });
+
+async function loadStats(uid) {
+  try {
+    const snap = await getCountFromServer(query(collection(db, "templates"), where("active", "==", true)));
+    statTemplates.textContent = snap.data().count;
+  } catch (error) {
+    console.error("Gagal hitung template:", error);
+    statTemplates.textContent = "-";
+  }
+
+  try {
+    const docsSnap = await getDocs(query(collection(db, "documents"), where("userId", "==", uid)));
+    const docs = docsSnap.docs.map((d) => d.data());
+    statMyDocs.textContent = docs.length;
+
+    const now = new Date();
+    const monthCount = docs.filter((d) => {
+      if (!d.createdAt || !d.createdAt.toDate) return false;
+      const dt = d.createdAt.toDate();
+      return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
+    }).length;
+    statMonthDocs.textContent = monthCount;
+  } catch (error) {
+    console.error("Gagal hitung dokumen:", error);
+    statMyDocs.textContent = "-";
+    statMonthDocs.textContent = "-";
+  }
+}
