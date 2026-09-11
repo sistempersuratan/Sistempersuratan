@@ -14,7 +14,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const navDashboard = document.getElementById("navDashboard");
+const navDashboardLinks = document.querySelectorAll(".nav-dashboard-link");
 const adminOnlyLinks = document.querySelectorAll(".admin-only");
 const userName = document.getElementById("userName");
 const userInitial = document.getElementById("userInitial");
@@ -45,7 +45,7 @@ requireAuth((user, profile) => {
   userRoleBadge.textContent = profile.role === "admin" ? "Admin" : "User";
   userRoleBadge.className = `badge ${profile.role === "admin" ? "admin" : "user"}`;
 
-  navDashboard.href = profile.role === "admin" ? "../admin.html" : "../dashboard.html";
+   navDashboardLinks.forEach((el) => (el.href = profile.role === "admin" ? "../admin.html" : "../dashboard.html"));
   if (profile.role === "admin") {
     adminOnlyLinks.forEach((el) => (el.style.display = ""));
   }
