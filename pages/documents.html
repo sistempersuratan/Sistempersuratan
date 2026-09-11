@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dokumen — Sistem Persuratan</title>
+<link rel="icon" href="../assets/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/dashboard.css">
+<link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="seal">SP</div>
+        <div class="name">Persuratan</div>
+      </div>
+
+      <nav class="nav-group">
+        <a class="nav-link" id="navDashboard" href="../dashboard.html">Dashboard</a>
+        <a class="nav-link" href="create-document.html">Buat Dokumen</a>
+        <a class="nav-link active" href="documents.html" id="navDocuments">Dokumen Saya</a>
+        <a class="nav-link admin-only" href="users.html" style="display:none;">Kelola User</a>
+        <a class="nav-link admin-only" href="templates.html" style="display:none;">Kelola Template</a>
+        <a class="nav-link" href="settings.html">Pengaturan</a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="avatar" id="userInitial">?</div>
+          <div class="who">
+            <div class="n" id="userName">Memuat...</div>
+            <div class="r"><span class="badge" id="userRoleBadge">User</span></div>
+          </div>
+        </div>
+        <button class="nav-link js-logout" id="logoutBtn">Keluar</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="main-header">
+        <div>
+          <h1 id="pageTitle">Dokumen Saya</h1>
+          <div class="subtitle" id="pageSubtitle">Daftar dokumen yang sudah kamu buat.</div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn admin-only" id="exportExcelBtn" style="display:none; width:auto;">Export Rekap Excel</button>
+          <button class="btn-header-logout js-logout" type="button">Keluar</button>
+        </div>
+      </div>
+
+      <div class="panel" style="padding:0; overflow-x:auto;">
+        <table class="data-table" id="documentsTable">
+          <thead>
+            <tr>
+              <th>Nomor Surat</th>
+              <th>Template</th>
+              <th>Tanggal Dibuat</th>
+              <th class="admin-only" style="display:none;">Dibuat Oleh</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="documentsTableBody">
+            <tr><td colspan="6" class="table-empty">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel" id="detailPanel" style="display:none; margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h3 id="detailTitle">Detail Dokumen</h3>
+            <div class="subtitle" id="detailMeta"></div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" id="printBtn">Cetak</button>
+            <button class="btn" id="downloadPdfBtn">Download PDF</button>
+            <button class="btn" id="downloadWordBtn">Download Word</button>
+            <button class="btn" id="shareWaBtn">Kirim WA</button>
+            <button class="btn" id="shareEmailBtn">Kirim Email</button>
+            <button class="btn btn-primary" id="submitBtn" style="display:none;">Ajukan Rilis</button>
+            <button class="btn btn-primary admin-only" id="releaseBtn" style="display:none;">Setujui & Rilis</button>
+            <button class="btn admin-only" id="rejectBtn" style="display:none;">Tolak</button>
+          </div>
+        </div>
+        <div id="detailPreview" style="border:1px solid #e2e2e2; padding:24px; background:#fff; margin-top:16px; min-height:200px;"></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script type="module" src="../js/firebase-config.js"></script>
+  <script type="module" src="../js/documents.js"></script>
+</body>
+</html>
