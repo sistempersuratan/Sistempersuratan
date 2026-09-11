@@ -1,40 +1,51 @@
 // ===========================================================
-// create-document.js — Logic halaman pages/create-document.html
-// Bisa diakses admin & user (requireAuth polos, tanpa requireRole).
+// documents.js — Logic halaman pages/documents.html
+// Admin: lihat SEMUA dokumen. User: lihat dokumen miliknya saja.
+// Alur status: draft -> (user ajukan) pending -> (admin) released / draft (ditolak)
 // ===========================================================
 
 import { requireAuth, logout } from "./auth.js";
-import { showToast, setButtonLoading } from "./ui.js";
-import { renderTemplate } from "./template-engine.js";
+import { showToast } from "./ui.js";
 import { db } from "./firebase-config.js";
 import {
   collection,
+  query,
+  where,
   getDocs,
-  addDoc,
+  doc,
+  updateDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const navDashboard = document.getElementById("navDashboard");
-const adminOnlyLinks = document.querySelectorAll(".admin-only");
+const adminOnlyEls = document.querySelectorAll(".admin-only");
 const userName = document.getElementById("userName");
 const userInitial = document.getElementById("userInitial");
 const userRoleBadge = document.getElementById("userRoleBadge");
 const logoutButtons = document.querySelectorAll(".js-logout");
 
-const templateSelect = document.getElementById("templateSelect");
-const formPanel = document.getElementById("formPanel");
-const formTitle = document.getElementById("formTitle");
-const formDescription = document.getElementById("formDescription");
-const documentForm = document.getElementById("documentForm");
-const previewBtn = document.getElementById("previewBtn");
-const saveBtn = document.getElementById("saveBtn");
-const previewPanel = document.getElementById("previewPanel");
-const previewArea = document.getElementById("previewArea");
+const pageTitle = document.getElementById("pageTitle");
+const pageSubtitle = document.getElementById("pageSubtitle");
+const tableBody = document.getElementById("documentsTableBody");
+const exportExcelBtn = document.getElementById("exportExcelBtn");
 
-let templatesCache = [];
+const detailPanel = document.getElementById("detailPanel");
+const detailTitle = document.getElementById("detailTitle");
+const detailMeta = document.getElementById("detailMeta");
+const detailPreview = document.getElementById("detailPreview");
+const printBtn = document.getElementById("printBtn");
+const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+const downloadWordBtn = document.getElementById("downloadWordBtn");
+const shareWaBtn = document.getElementById("shareWaBtn");
+const shareEmailBtn = document.getElementById("shareEmailBtn");
+const submitBtn = document.getElementById("submitBtn");
+const releaseBtn = document.getElementById("releaseBtn");
+const rejectBtn = document.getElementById("rejectBtn");
+
 let currentUser = null;
 let currentProfile = null;
-let selectedTemplate = null;
+let documentsCache = [];
+let activeDocument = null;
 
 requireAuth((user, profile) => {
   currentUser = user;
@@ -44,13 +55,15 @@ requireAuth((user, profile) => {
   userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
   userRoleBadge.textContent = profile.role === "admin" ? "Admin" : "User";
   userRoleBadge.className = `badge ${profile.role === "admin" ? "admin" : "user"}`;
-
   navDashboard.href = profile.role === "admin" ? "../admin.html" : "../dashboard.html";
+
   if (profile.role === "admin") {
-    adminOnlyLinks.forEach((el) => (el.style.display = ""));
+    adminOnlyEls.forEach((el) => (el.style.display = ""));
+    pageTitle.textContent = "Semua Dokumen";
+    pageSubtitle.textContent = "Seluruh dokumen yang dibuat oleh semua user.";
   }
 
-  loadTemplates();
+  loadDocuments();
 });
 
 logoutButtons.forEach((btn) => {
@@ -64,140 +77,246 @@ logoutButtons.forEach((btn) => {
   });
 });
 
-async function loadTemplates() {
+async function loadDocuments() {
   try {
-    const snap = await getDocs(collection(db, "templates"));
-    templatesCache = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((t) => t.active !== false);
-    templatesCache.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    renderTemplateOptions();
-  } catch (error) {
-    console.error("Gagal memuat daftar template:", error);
-    templateSelect.innerHTML = `<option value="">Gagal memuat template</option>`;
-    showToast("Gagal memuat daftar template. Coba refresh halaman.", "error");
-  }
-}
-
-function renderTemplateOptions() {
-  if (templatesCache.length === 0) {
-    templateSelect.innerHTML = `<option value="">Belum ada template aktif</option>`;
-    return;
-  }
-  templateSelect.innerHTML =
-    `<option value="">— Pilih template —</option>` +
-    templatesCache.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("");
-}
-
-templateSelect.addEventListener("change", () => {
-  const id = templateSelect.value;
-  selectedTemplate = templatesCache.find((t) => t.id === id) || null;
-  previewPanel.style.display = "none";
-  previewArea.innerHTML = "";
-
-  if (!selectedTemplate) {
-    formPanel.style.display = "none";
-    return;
-  }
-
-  formTitle.textContent = selectedTemplate.name;
-  formDescription.textContent = selectedTemplate.description || "";
-  buildFormFields(selectedTemplate.fields || []);
-  formPanel.style.display = "block";
-});
-
-function buildFormFields(fields) {
-  if (fields.length === 0) {
-    documentForm.innerHTML = `<p class="subtitle">Template ini tidak punya field yang bisa diisi.</p>`;
-    return;
-  }
-
-  documentForm.innerHTML = fields.map((f) => {
-    const req = f.required ? "required" : "";
-    const label = `<label for="field_${f.name}" style="display:block; font-weight:600; margin:14px 0 6px;">${escapeHtml(f.label || f.name)}${f.required ? " *" : ""}</label>`;
-
-    let input;
-    if (f.type === "textarea") {
-      input = `<textarea id="field_${f.name}" name="${f.name}" class="input" rows="4" ${req}></textarea>`;
-    } else if (f.type === "select" && Array.isArray(f.options)) {
-      const opts = f.options.map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
-      input = `<select id="field_${f.name}" name="${f.name}" class="input" ${req}><option value="">— Pilih —</option>${opts}</select>`;
+    let snap;
+    if (currentProfile.role === "admin") {
+      snap = await getDocs(collection(db, "documents"));
     } else {
-      const type = f.type === "date" || f.type === "number" ? f.type : "text";
-      input = `<input id="field_${f.name}" name="${f.name}" type="${type}" class="input" ${req}>`;
+      const q = query(collection(db, "documents"), where("userId", "==", currentUser.uid));
+      snap = await getDocs(q);
     }
+    documentsCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    documentsCache.sort((a, b) => tsToMillis(b.createdAt) - tsToMillis(a.createdAt));
+    renderTable();
+  } catch (error) {
+    console.error("Gagal memuat dokumen:", error);
+    tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
+  }
+}
 
-    return label + input;
+function statusInfo(status) {
+  switch (status) {
+    case "pending": return { cls: "admin", label: "Menunggu Persetujuan" };
+    case "released": return { cls: "user", label: "Rilis" };
+    default: return { cls: "inactive", label: "Draft" };
+  }
+}
+
+function renderTable() {
+  if (documentsCache.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Belum ada dokumen. Buat dari menu "Buat Dokumen".</td></tr>`;
+    return;
+  }
+
+  const isAdmin = currentProfile.role === "admin";
+  tableBody.innerHTML = documentsCache.map((d) => {
+    const s = statusInfo(d.status);
+    return `
+    <tr>
+      <td>${escapeHtml(d.documentNumber || "-")}</td>
+      <td>${escapeHtml(d.templateName || "-")}</td>
+      <td>${formatDate(d.createdAt)}</td>
+      ${isAdmin ? `<td>${escapeHtml(d.createdByUsername || "-")}</td>` : ""}
+      <td><span class="badge ${s.cls}">${s.label}</span></td>
+      <td><button class="link-btn" data-id="${d.id}">Lihat</button></td>
+    </tr>`;
   }).join("");
 }
 
-function getFormData() {
-  const fields = selectedTemplate.fields || [];
-  const data = {};
-  for (const f of fields) {
-    const el = document.getElementById(`field_${f.name}`);
-    data[f.name] = el ? el.value.trim() : "";
-  }
-  return data;
-}
-
-function validateForm(data) {
-  const fields = selectedTemplate.fields || [];
-  for (const f of fields) {
-    if (f.required && !data[f.name]) {
-      showToast(`"${f.label || f.name}" wajib diisi.`, "error");
-      return false;
-    }
-  }
-  return true;
-}
-
-previewBtn.addEventListener("click", () => {
-  if (!selectedTemplate) return;
-  const data = getFormData();
-  if (!validateForm(data)) return;
-
-  const html = renderTemplate(selectedTemplate.html, data);
-  previewArea.innerHTML = html;
-  previewPanel.style.display = "block";
-  previewPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+tableBody.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-id]");
+  if (!btn) return;
+  const item = documentsCache.find((d) => d.id === btn.dataset.id);
+  if (item) openDetail(item);
 });
 
-saveBtn.addEventListener("click", async () => {
-  if (!selectedTemplate) {
-    showToast("Pilih template terlebih dahulu.", "error");
-    return;
-  }
-  const data = getFormData();
-  if (!validateForm(data)) return;
+function openDetail(item) {
+  activeDocument = item;
+  const s = statusInfo(item.status);
+  detailTitle.textContent = item.templateName || "Dokumen";
+  detailMeta.textContent = `${item.documentNumber ? "No. " + item.documentNumber + " — " : ""}Dibuat ${formatDate(item.createdAt)} oleh ${item.createdByUsername || "-"} — Status: ${s.label}` +
+    (item.rejectionReason ? ` — Alasan ditolak sebelumnya: ${item.rejectionReason}` : "");
+  detailPreview.innerHTML = item.renderedHtml || "<p>Tidak ada isi.</p>";
 
-  const renderedHtml = renderTemplate(selectedTemplate.html, data);
+  const isAdmin = currentProfile.role === "admin";
+  const isOwner = item.userId === currentUser.uid;
 
-  setButtonLoading(saveBtn, true, "Simpan Dokumen", "Menyimpan...");
+  submitBtn.style.display = !isAdmin && isOwner && item.status === "draft" ? "" : "none";
+  releaseBtn.style.display = isAdmin && item.status === "pending" ? "" : "none";
+  rejectBtn.style.display = isAdmin && item.status === "pending" ? "" : "none";
+
+  detailPanel.style.display = "block";
+  detailPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+printBtn.addEventListener("click", () => {
+  if (!activeDocument) return;
+  const win = window.open("", "_blank");
+  win.document.write(`<html><head><title>${escapeHtml(activeDocument.templateName || "Cetak")}</title></head><body>${activeDocument.renderedHtml}</body></html>`);
+  win.document.close();
+  win.focus();
+  win.print();
+});
+
+downloadPdfBtn.addEventListener("click", () => {
+  if (!activeDocument) return;
+  const filename = fileBaseName(activeDocument);
+  html2pdf().set({
+    margin: 10,
+    filename: `${filename}.pdf`,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+  }).from(detailPreview).save();
+});
+
+downloadWordBtn.addEventListener("click", () => {
+  if (!activeDocument) return;
+  const filename = fileBaseName(activeDocument);
+  const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
+  const postHtml = "</body></html>";
+  const fullHtml = preHtml + activeDocument.renderedHtml + postHtml;
+  const blob = new Blob(["\ufeff", fullHtml], { type: "application/msword" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+shareWaBtn.addEventListener("click", () => shareDocument("wa"));
+shareEmailBtn.addEventListener("click", () => shareDocument("email"));
+
+async function shareDocument(channel) {
+  if (!activeDocument) return;
+  const filename = fileBaseName(activeDocument);
+  const text = `Dokumen: ${activeDocument.templateName}${activeDocument.documentNumber ? " (No. " + activeDocument.documentNumber + ")" : ""}`;
+
   try {
-    await addDoc(collection(db, "documents"), {
-      templateId: selectedTemplate.id,
-      templateName: selectedTemplate.name,
-      data,
-      renderedHtml,
-      status: "draft",
-      documentNumber: null,
-      userId: currentUser.uid,
-      createdByUsername: currentProfile.username || currentUser.email,
-      createdAt: serverTimestamp(),
+    const pdfBlob = await html2pdf().set({
+      margin: 10,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    }).from(detailPreview).outputPdf("blob");
+
+    const file = new File([pdfBlob], `${filename}.pdf`, { type: "application/pdf" });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: activeDocument.templateName, text });
+      return;
+    }
+  } catch (error) {
+    console.warn("Web Share tidak tersedia, fallback ke link manual:", error);
+  }
+
+  downloadPdfBtn.click();
+  if (channel === "wa") {
+    window.open(`https://wa.me/?text=${encodeURIComponent(text + " (PDF terlampir, silakan lampirkan file yang baru terunduh)")}`, "_blank");
+  } else {
+    window.location.href = `mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent("PDF dokumen terlampir, silakan lampirkan file yang baru terunduh.")}`;
+  }
+  showToast("PDF sudah diunduh. Lampirkan manual di aplikasi yang terbuka.", "info");
+}
+
+submitBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  if (!confirm("Ajukan dokumen ini untuk dirilis? Setelah diajukan, kamu tidak bisa membatalkannya sendiri — tunggu keputusan admin.")) return;
+  try {
+    await updateDoc(doc(db, "documents", activeDocument.id), {
+      status: "pending",
       updatedAt: serverTimestamp()
     });
-
-    showToast("Dokumen berhasil disimpan.", "success");
-    previewArea.innerHTML = renderedHtml;
-    previewPanel.style.display = "block";
+    showToast("Dokumen berhasil diajukan untuk dirilis.", "success");
+    detailPanel.style.display = "none";
+    loadDocuments();
   } catch (error) {
-    console.error("Gagal menyimpan dokumen:", error);
-    showToast("Gagal menyimpan dokumen. Coba lagi.", "error");
-  } finally {
-    setButtonLoading(saveBtn, false, "Simpan Dokumen");
+    console.error("Gagal mengajukan rilis:", error);
+    showToast("Gagal mengajukan dokumen. Coba lagi.", "error");
   }
 });
+
+releaseBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  const nomor = prompt("Masukkan nomor surat:", activeDocument.documentNumber || "");
+  if (nomor === null) return;
+  if (!nomor.trim()) {
+    showToast("Nomor surat wajib diisi.", "error");
+    return;
+  }
+  try {
+    await updateDoc(doc(db, "documents", activeDocument.id), {
+      status: "released",
+      documentNumber: nomor.trim(),
+      rejectionReason: null,
+      releasedAt: serverTimestamp(),
+      releasedBy: currentProfile.username || currentUser.email,
+      updatedAt: serverTimestamp()
+    });
+    showToast("Dokumen disetujui dan berhasil dirilis.", "success");
+    detailPanel.style.display = "none";
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal merilis dokumen:", error);
+    showToast("Gagal merilis dokumen. Coba lagi.", "error");
+  }
+});
+
+rejectBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  const reason = prompt("Alasan penolakan (boleh dikosongkan):", "");
+  if (reason === null) return;
+  try {
+    await updateDoc(doc(db, "documents", activeDocument.id), {
+      status: "draft",
+      rejectionReason: reason.trim() || null,
+      updatedAt: serverTimestamp()
+    });
+    showToast("Dokumen ditolak dan dikembalikan ke draft.", "success");
+    detailPanel.style.display = "none";
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal menolak dokumen:", error);
+    showToast("Gagal menolak dokumen. Coba lagi.", "error");
+  }
+});
+
+exportExcelBtn.addEventListener("click", () => {
+  const rows = documentsCache.map((d) => ({
+    "Nomor Surat": d.documentNumber || "-",
+    "Template": d.templateName || "-",
+    "Status": statusInfo(d.status).label,
+    "Dibuat Oleh": d.createdByUsername || "-",
+    "Tanggal Dibuat": formatDate(d.createdAt),
+    "Tanggal Rilis": formatDate(d.releasedAt)
+  }));
+  if (rows.length === 0) {
+    showToast("Tidak ada data untuk diexport.", "error");
+    return;
+  }
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Rekap Surat");
+  XLSX.writeFile(wb, `rekap-surat-${Date.now()}.xlsx`);
+});
+
+function fileBaseName(item) {
+  return (item.documentNumber || item.templateName || "dokumen").replace(/[^a-zA-Z0-9]+/g, "-");
+}
+
+function tsToMillis(ts) {
+  if (!ts) return 0;
+  return ts.toMillis ? ts.toMillis() : 0;
+}
+
+function formatDate(ts) {
+  if (!ts || !ts.toDate) return "-";
+  return ts.toDate().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+}
 
 function escapeHtml(str) {
   const div = document.createElement("div");
