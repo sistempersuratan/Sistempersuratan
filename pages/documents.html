@@ -19,9 +19,9 @@
       </div>
 
       <nav class="nav-group">
-        <a class="nav-link" id="navDashboard" href="../dashboard.html">Dashboard</a>
+        <a class="nav-link nav-dashboard-link" href="../dashboard.html">Dashboard</a>
         <a class="nav-link" href="create-document.html">Buat Dokumen</a>
-        <a class="nav-link active" href="documents.html" id="navDocuments">Dokumen Saya</a>
+        <a class="nav-link active" href="documents.html">Dokumen Saya</a>
         <a class="nav-link admin-only" href="users.html" style="display:none;">Kelola User</a>
         <a class="nav-link admin-only" href="templates.html" style="display:none;">Kelola Template</a>
         <a class="nav-link" href="settings.html">Pengaturan</a>
@@ -90,6 +90,14 @@
       </div>
     </main>
   </div>
+
+  <nav class="bottom-nav">
+    <a class="nav-link nav-dashboard-link" href="../dashboard.html">Dashboard</a>
+    <a class="nav-link" href="create-document.html">Buat</a>
+    <a class="nav-link active" href="documents.html">Dokumen</a>
+    <a class="nav-link admin-only" href="templates.html" style="display:none;">Template</a>
+    <button class="nav-link js-logout" type="button">Keluar</button>
+  </nav>
 
   <div class="toast-stack" id="toastStack"></div>
 
