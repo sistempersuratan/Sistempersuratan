@@ -1,120 +1,79 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Template Editor — Sistem Persuratan</title>
-<link rel="icon" href="../assets/favicon.png">
-<link rel="stylesheet" href="../css/style.css">
-<link rel="stylesheet" href="../css/dashboard.css">
-<link rel="stylesheet" href="../css/admin.css">
-<link rel="stylesheet" href="../css/template-editor.css">
-</head>
-    <nav class="bottom-nav">
-    <a class="nav-link" href="../admin.html">Dashboard</a>
-    <a class="nav-link" href="users.html">User</a>
-    <a class="nav-link" href="templates.html">Template</a>
-    <a class="nav-link" href="documents.html">Dokumen</a>
-  </nav>
-<body>
+<div style="font-family: Arial, sans-serif; font-size: 13px; color: #000; max-width: 750px; margin: 0 auto;">
 
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="seal">SP</div>
-        <div class="name">Persuratan</div>
-      </div>
-
-      <nav class="nav-group">
-        <a class="nav-link" href="../admin.html">Dashboard</a>
-        <a class="nav-link" href="users.html">Kelola User</a>
-        <a class="nav-link active" href="templates.html">Kelola Template</a>
-        <a class="nav-link" href="documents.html">Semua Dokumen</a>
-        
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="user-chip">
-          <div class="avatar" id="userInitial">?</div>
-          <div class="who">
-            <div class="n" id="userName">Memuat...</div>
-            <div class="r"><span class="badge admin">Admin</span></div>
-          </div>
-        </div>
-        <button class="nav-link js-logout" id="logoutBtn">Keluar</button>
-      </div>
-    </aside>
-
-    <main class="main">
-      <div class="main-header">
-        <div>
-          <h1 id="editorTitle">Template Baru</h1>
-          <div class="subtitle"><a href="templates.html" style="color:inherit;">&larr; Kembali ke Kelola Template</a></div>
-        </div>
-        <div style="display:flex; gap:10px;">
-          <button class="btn-header-logout js-logout" type="button">Keluar</button>
-          <button class="btn btn-secondary" id="previewBtn" type="button">Preview</button>
-          <button class="btn btn-primary" id="saveTemplateBtn" type="button" style="width:auto; padding:9px 16px;">Simpan Template</button>
-        </div>
-      </div>
-
-      <div id="editorFormError" class="form-error" style="margin-bottom:16px;"></div>
-
-      <div class="panel" style="margin-bottom:20px;">
-        <h2 class="section-title">Info Dasar</h2>
-        <div class="field">
-          <label for="tplName">Nama Template</label>
-          <input type="text" id="tplName" placeholder="Contoh: Surat Tugas">
-        </div>
-        <div class="field">
-          <label for="tplCategory">Kategori</label>
-          <input type="text" id="tplCategory" placeholder="Contoh: Surat">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label for="tplDescription">Deskripsi</label>
-          <input type="text" id="tplDescription" placeholder="Deskripsi singkat template ini">
-        </div>
-      </div>
-
-      <div class="panel" style="margin-bottom:20px;">
-        <div class="panel-header-row">
-          <h2 class="section-title" style="margin:0;">Field Formulir</h2>
-          <button class="btn btn-secondary" id="addFieldBtn" type="button" style="width:auto; padding:8px 14px;">+ Tambah Field</button>
-        </div>
-        <div id="fieldsList"></div>
-        <div class="empty-state" id="fieldsEmptyState" style="padding:24px;">
-          <p>Belum ada field. Klik "+ Tambah Field" untuk mulai.</p>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2 class="section-title">Isi Surat (HTML)</h2>
-        <p class="field-hint" style="margin-bottom:10px;">
-          Tulis isi surat bebas pakai HTML. Sisipkan placeholder field dengan mengklik chip di bawah,
-          atau ketik manual dengan format <code>{{nama_field}}</code>.
-        </p>
-        <div id="placeholderChips" class="chip-row"></div>
-        <textarea id="tplHtml" class="html-editor" rows="14" placeholder="&lt;h1&gt;SURAT TUGAS&lt;/h1&gt;&#10;&#10;&lt;p&gt;Nomor: {{nomor_surat}}&lt;/p&gt;&#10;&lt;p&gt;Nama: {{nama}}&lt;/p&gt;"></textarea>
-      </div>
-    </main>
-  </div>
-
-  <div class="modal-overlay" id="previewOverlay">
-    <div class="modal-card" style="max-width:700px;">
-      <h2>Preview Template</h2>
-      <p class="field-hint" style="margin-bottom:14px;">
-        Placeholder diisi contoh dari label field (data asli baru diisi user saat membuat dokumen di STEP berikutnya).
-      </p>
-      <div id="previewContent" class="preview-box"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="closePreviewBtn">Tutup</button>
+  <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px;">
+    <div style="font-size:26px; font-weight:bold; color:#0a6e5c;">✚ TCI</div>
+    <div>
+      <div style="font-weight:bold; font-size:15px;">Teleradiologi Center Indonesia</div>
+      <div style="font-size:11px; line-height:1.4;">
+        Graha Pratama, Jl. Letjen M.T. Haryono No.Kav. 15 Building 11th Floor,<br>
+        Tebet Bar., Kec. Tebet, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta 12810
       </div>
     </div>
   </div>
 
-  <div class="toast-stack" id="toastStack"></div>
+  <div style="border:2px solid #000; text-align:center; font-size:20px; font-weight:bold; letter-spacing:4px; padding:6px 0; margin:14px 0;">
+    INVOICE
+  </div>
 
-  <script type="module" src="../js/firebase-config.js"></script>
-  <script type="module" src="../js/template-editor.js"></script>
-</body>
-</html>
+  <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+    <tr>
+      <td style="width:50%; vertical-align:top; font-size:12px; line-height:1.6;">
+        <b>Name</b> &nbsp;&nbsp;: {{nama_klien}}<br>
+        <b>Attn</b> &nbsp;&nbsp;&nbsp;&nbsp;: {{attn}}<br>
+        <b>Address</b> : {{alamat_klien}}<br>
+        <b>NPWP</b> &nbsp;: {{npwp_klien}}
+      </td>
+      <td style="width:50%; vertical-align:top; font-size:12px; line-height:1.6;">
+        <b>No. Invoice</b> : {{no_invoice}}<br>
+        <b>Date</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {{tanggal_invoice}}<br>
+        <b>Due Date</b> &nbsp;: {{tanggal_jatuh_tempo}}
+      </td>
+    </tr>
+  </table>
+
+  <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:16px;">
+    <tr style="background:#f0f0f0;">
+      <th style="border:1px solid #000; padding:8px; text-align:left;">Details for Period {{periode}}</th>
+      <th style="border:1px solid #000; padding:8px; text-align:center; width:120px;">Product Line</th>
+      <th style="border:1px solid #000; padding:8px; text-align:right; width:130px;">Amount (IDR)</th>
+    </tr>
+    <tr>
+      <td style="border:1px solid #000; padding:8px; vertical-align:top; height:80px;">{{deskripsi_layanan}}</td>
+      <td style="border:1px solid #000; padding:8px; text-align:center; vertical-align:top;">{{product_line}}</td>
+      <td style="border:1px solid #000; padding:8px; text-align:right; vertical-align:top;">{{jumlah}}</td>
+    </tr>
+  </table>
+
+  <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+    <tr>
+      <td style="width:55%; vertical-align:top; font-size:12px;">
+        <b>Please Transfer Funds Directly</b><br><br>
+        <b>Bank</b> &nbsp;&nbsp;&nbsp;: BNI, Acc No 2833518103<br>
+        <b>Name</b> &nbsp;&nbsp;: PT. TELERADIOLOGI CENTER INDONESIA<br>
+        <b>NPWP</b> &nbsp;: 12.655.025.0-015.000
+      </td>
+      <td style="width:45%; vertical-align:top;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <tr><td style="padding:4px 0;">Sub Total</td><td style="text-align:right;">{{sub_total}}</td></tr>
+          <tr><td style="padding:4px 0;">Tax Base Amount</td><td style="text-align:right;">{{dasar_pengenaan_pajak}}</td></tr>
+          <tr><td style="padding:4px 0;">PPN / VAT</td><td style="text-align:right;">{{ppn}}</td></tr>
+          <tr><td style="padding:4px 0;">Withholding Tax</td><td style="text-align:right;">{{withholding_tax}}</td></tr>
+          <tr style="border-top:1px solid #000;"><td style="padding:4px 0;">Total After Withholding</td><td style="text-align:right;">{{total_setelah_potongan}}</td></tr>
+          <tr style="border-top:2px solid #000; font-weight:bold;"><td style="padding:6px 0;">Full Amount</td><td style="text-align:right;">{{full_amount}}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <div style="text-align:right; margin-top:30px; font-size:12px;">
+    PT. TELERADIOLOGI CENTER INDONESIA<br><br><br>
+    <span style="text-decoration:underline;">Slamet Riyanto</span><br>
+    Director
+  </div>
+
+  <div style="font-size:10px; margin-top:30px; border-top:1px solid #ccc; padding-top:8px;">
+    * According to Indonesia Tax Regulation, please deduct 2% Wht Art 23 from amount before VAT and submit Withholding Tax Slip to us by email: wiwin26@tcihealth.co.id<br>
+    * It will be considered as Unpaid Amount if we don't receive Withholding Tax Slip within one month after payment date.
+  </div>
+
+</div>
