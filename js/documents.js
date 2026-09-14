@@ -55,12 +55,13 @@ requireAuth((user, profile) => {
   userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
   userRoleBadge.textContent = profile.role === "admin" ? "Admin" : "User";
   userRoleBadge.className = `badge ${profile.role === "admin" ? "admin" : "user"}`;
- navDashboardLinks.forEach((el) => {
-  el.addEventListener("click", (e) => {
-    e.preventDefault();
-    window.location.href = currentProfile.role === "admin" ? "../admin.html" : "../dashboard.html";
+
+  navDashboardLinks.forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.href = currentProfile.role === "admin" ? "../admin.html" : "../dashboard.html";
+    });
   });
-});
 
   if (profile.role === "admin") {
     adminOnlyEls.forEach((el) => (el.style.display = ""));
@@ -229,4 +230,102 @@ async function shareDocument(channel) {
 }
 
 submitBtn.addEventListener("click", async () => {
-  if (!activeDocument)
+  if (!activeDocument) return;
+  if (!confirm("Ajukan dokumen ini untuk dirilis? Setelah diajukan, kamu tidak bisa membatalkannya sendiri — tunggu keputusan admin.")) return;
+  try {
+    await updateDoc(doc(db, "documents", activeDocument.id), {
+      status: "pending",
+      updatedAt: serverTimestamp()
+    });
+    showToast("Dokumen berhasil diajukan untuk dirilis.", "success");
+    detailPanel.style.display = "none";
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal mengajukan rilis:", error);
+    showToast("Gagal mengajukan dokumen. Coba lagi.", "error");
+  }
+});
+
+releaseBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  const nomor = prompt("Masukkan nomor surat:", activeDocument.documentNumber || "");
+  if (nomor === null) return;
+  if (!nomor.trim()) {
+    showToast("Nomor surat wajib diisi.", "error");
+    return;
+  }
+  try {
+    await updateDoc(doc(db, "documents", activeDocument.id), {
+      status: "released",
+      documentNumber: nomor.trim(),
+      rejectionReason: null,
+      releasedAt: serverTimestamp(),
+      releasedBy: currentProfile.username || currentUser.email,
+      updatedAt: serverTimestamp()
+    });
+    showToast("Dokumen disetujui dan berhasil dirilis.", "success");
+    detailPanel.style.display = "none";
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal merilis dokumen:", error);
+    showToast("Gagal merilis dokumen. Coba lagi.", "error");
+  }
+});
+
+rejectBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  const reason = prompt("Alasan penolakan (boleh dikosongkan):", "");
+  if (reason === null) return;
+  try {
+    await updateDoc(doc(db, "documents", activeDocument.id), {
+      status: "draft",
+      rejectionReason: reason.trim() || null,
+      updatedAt: serverTimestamp()
+    });
+    showToast("Dokumen ditolak dan dikembalikan ke draft.", "success");
+    detailPanel.style.display = "none";
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal menolak dokumen:", error);
+    showToast("Gagal menolak dokumen. Coba lagi.", "error");
+  }
+});
+
+exportExcelBtn.addEventListener("click", () => {
+  const rows = documentsCache.map((d) => ({
+    "Nomor Surat": d.documentNumber || "-",
+    "Template": d.templateName || "-",
+    "Status": statusInfo(d.status).label,
+    "Dibuat Oleh": d.createdByUsername || "-",
+    "Tanggal Dibuat": formatDate(d.createdAt),
+    "Tanggal Rilis": formatDate(d.releasedAt)
+  }));
+  if (rows.length === 0) {
+    showToast("Tidak ada data untuk diexport.", "error");
+    return;
+  }
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Rekap Surat");
+  XLSX.writeFile(wb, `rekap-surat-${Date.now()}.xlsx`);
+});
+
+function fileBaseName(item) {
+  return (item.documentNumber || item.templateName || "dokumen").replace(/[^a-zA-Z0-9]+/g, "-");
+}
+
+function tsToMillis(ts) {
+  if (!ts) return 0;
+  return ts.toMillis ? ts.toMillis() : 0;
+}
+
+function formatDate(ts) {
+  if (!ts || !ts.toDate) return "-";
+  return ts.toDate().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
