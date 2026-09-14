@@ -45,10 +45,12 @@ requireAuth((user, profile) => {
   userRoleBadge.textContent = profile.role === "admin" ? "Admin" : "User";
   userRoleBadge.className = `badge ${profile.role === "admin" ? "admin" : "user"}`;
 
-   navDashboardLinks.forEach((el) => (el.href = profile.role === "admin" ? "../admin.html" : "../dashboard.html"));
-  if (profile.role === "admin") {
-    adminOnlyLinks.forEach((el) => (el.style.display = ""));
-  }
+  navDashboardLinks.forEach((el) => {
+  el.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = currentProfile.role === "admin" ? "../admin.html" : "../dashboard.html";
+  });
+});
 
   loadTemplates();
 });
