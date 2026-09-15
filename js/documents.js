@@ -1,331 +1,80 @@
-// ===========================================================
-// documents.js — Logic halaman pages/documents.html
-// Admin: lihat SEMUA dokumen. User: lihat dokumen miliknya saja.
-// Alur status: draft -> (user ajukan) pending -> (admin) released / draft (ditolak)
-// ===========================================================
+<div style="font-family: Arial, sans-serif; font-size: 13px; color: #000; max-width: 750px; margin: 0 auto;">
 
-import { requireAuth, logout } from "./auth.js";
-import { showToast } from "./ui.js";
-import { db } from "./firebase-config.js";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  updateDoc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px;">
+    <svg width="56" height="34" viewBox="0 0 56 34" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="0" width="12" height="30" fill="#2FE6A6"/>
+      <rect x="0" y="9" width="28" height="12" fill="#2FE6A6"/>
+      <path d="M 21 21 a 13 13 0 1 1 -13 13 l 8 0 a 5 5 0 1 0 5 -5 z" fill="#2FE6A6"/>
+    </svg>
+    <div>
+      <div style="font-weight:bold; font-size:15px; color:#0a3d38;">Teleradiologi Center Indonesia</div>
+      <div style="font-size:11px; line-height:1.4;">
+        Graha Pratama, Jl. Letjen M.T. Haryono No.Kav. 15 Building 11th Floor,<br>
+        Tebet Bar., Kec. Tebet, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta 12810
+      </div>
+    </div>
+  </div>
 
-const navDashboardLinks = document.querySelectorAll(".nav-dashboard-link");
-const adminOnlyEls = document.querySelectorAll(".admin-only");
-const userName = document.getElementById("userName");
-const userInitial = document.getElementById("userInitial");
-const userRoleBadge = document.getElementById("userRoleBadge");
-const logoutButtons = document.querySelectorAll(".js-logout");
+  <div style="border:2px solid #000; text-align:center; font-size:20px; font-weight:bold; letter-spacing:4px; padding:6px 0; margin:14px 0;">
+    INVOICE
+  </div>
 
-const pageTitle = document.getElementById("pageTitle");
-const pageSubtitle = document.getElementById("pageSubtitle");
-const tableBody = document.getElementById("documentsTableBody");
-const exportExcelBtn = document.getElementById("exportExcelBtn");
-
-const detailPanel = document.getElementById("detailPanel");
-const detailTitle = document.getElementById("detailTitle");
-const detailMeta = document.getElementById("detailMeta");
-const detailPreview = document.getElementById("detailPreview");
-const printBtn = document.getElementById("printBtn");
-const downloadPdfBtn = document.getElementById("downloadPdfBtn");
-const downloadWordBtn = document.getElementById("downloadWordBtn");
-const shareWaBtn = document.getElementById("shareWaBtn");
-const shareEmailBtn = document.getElementById("shareEmailBtn");
-const submitBtn = document.getElementById("submitBtn");
-const releaseBtn = document.getElementById("releaseBtn");
-const rejectBtn = document.getElementById("rejectBtn");
-
-let currentUser = null;
-let currentProfile = null;
-let documentsCache = [];
-let activeDocument = null;
-
-requireAuth((user, profile) => {
-  currentUser = user;
-  currentProfile = profile;
-
-  userName.textContent = profile.username || user.email;
-  userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
-  userRoleBadge.textContent = profile.role === "admin" ? "Admin" : "User";
-  userRoleBadge.className = `badge ${profile.role === "admin" ? "admin" : "user"}`;
-
-  navDashboardLinks.forEach((el) => {
-    el.addEventListener("click", (e) => {
-      e.preventDefault();
-      window.location.href = currentProfile.role === "admin" ? "../admin.html" : "../dashboard.html";
-    });
-  });
-
-  if (profile.role === "admin") {
-    adminOnlyEls.forEach((el) => (el.style.display = ""));
-    pageTitle.textContent = "Semua Dokumen";
-    pageSubtitle.textContent = "Seluruh dokumen yang dibuat oleh semua user.";
-  }
-
-  loadDocuments();
-});
-
-logoutButtons.forEach((btn) => {
-  btn.addEventListener("click", async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error("Gagal logout:", error);
-      showToast("Gagal keluar. Coba lagi.", "error");
-    }
-  });
-});
-
-async function loadDocuments() {
-  try {
-    let snap;
-    if (currentProfile.role === "admin") {
-      snap = await getDocs(collection(db, "documents"));
-    } else {
-      const q = query(collection(db, "documents"), where("userId", "==", currentUser.uid));
-      snap = await getDocs(q);
-    }
-    documentsCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    documentsCache.sort((a, b) => tsToMillis(b.createdAt) - tsToMillis(a.createdAt));
-    renderTable();
-  } catch (error) {
-    console.error("Gagal memuat dokumen:", error);
-    tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
-  }
-}
-
-function statusInfo(status) {
-  switch (status) {
-    case "pending": return { cls: "admin", label: "Menunggu Persetujuan" };
-    case "released": return { cls: "user", label: "Rilis" };
-    default: return { cls: "inactive", label: "Draft" };
-  }
-}
-
-function renderTable() {
-  if (documentsCache.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Belum ada dokumen. Buat dari menu "Buat Dokumen".</td></tr>`;
-    return;
-  }
-
-  const isAdmin = currentProfile.role === "admin";
-  tableBody.innerHTML = documentsCache.map((d) => {
-    const s = statusInfo(d.status);
-    return `
+  <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
     <tr>
-      <td>${escapeHtml(d.documentNumber || "-")}</td>
-      <td>${escapeHtml(d.templateName || "-")}</td>
-      <td>${formatDate(d.createdAt)}</td>
-      ${isAdmin ? `<td>${escapeHtml(d.createdByUsername || "-")}</td>` : ""}
-      <td><span class="badge ${s.cls}">${s.label}</span></td>
-      <td><button class="link-btn" data-id="${d.id}">Lihat</button></td>
-    </tr>`;
-  }).join("");
-}
+      <td style="width:50%; vertical-align:top; font-size:12px; line-height:1.6;">
+        <b>Name</b> &nbsp;&nbsp;: {{nama_klien}}<br>
+        <b>Attn</b> &nbsp;&nbsp;&nbsp;&nbsp;: {{attn}}<br>
+        <b>Address</b> : {{alamat_klien}}<br>
+        <b>NPWP</b> &nbsp;: {{npwp_klien}}
+      </td>
+      <td style="width:50%; vertical-align:top; font-size:12px; line-height:1.6;">
+        <b>No. Invoice</b> : {{no_invoice}}<br>
+        <b>Date</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {{tanggal_invoice}}<br>
+        <b>Due Date</b> &nbsp;: {{tanggal_jatuh_tempo}}
+      </td>
+    </tr>
+  </table>
 
-tableBody.addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-id]");
-  if (!btn) return;
-  const item = documentsCache.find((d) => d.id === btn.dataset.id);
-  if (item) openDetail(item);
-});
+  <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:16px;">
+    <tr style="background:#f0f0f0;">
+      <th style="border:1px solid #000; padding:8px; text-align:left;">Details for Period {{periode}}</th>
+      <th style="border:1px solid #000; padding:8px; text-align:center; width:120px;">Product Line</th>
+      <th style="border:1px solid #000; padding:8px; text-align:right; width:130px;">Amount (IDR)</th>
+    </tr>
+    <tr>
+      <td style="border:1px solid #000; padding:8px; vertical-align:top; height:80px;">{{deskripsi_layanan}}</td>
+      <td style="border:1px solid #000; padding:8px; text-align:center; vertical-align:top;">{{product_line}}</td>
+      <td style="border:1px solid #000; padding:8px; text-align:right; vertical-align:top;">{{jumlah}}</td>
+    </tr>
+  </table>
 
-function openDetail(item) {
-  activeDocument = item;
-  const s = statusInfo(item.status);
-  detailTitle.textContent = item.templateName || "Dokumen";
-  detailMeta.textContent = `${item.documentNumber ? "No. " + item.documentNumber + " — " : ""}Dibuat ${formatDate(item.createdAt)} oleh ${item.createdByUsername || "-"} — Status: ${s.label}` +
-    (item.rejectionReason ? ` — Alasan ditolak sebelumnya: ${item.rejectionReason}` : "");
-  detailPreview.innerHTML = item.renderedHtml || "<p>Tidak ada isi.</p>";
+  <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+    <tr>
+      <td style="width:55%; vertical-align:top; font-size:12px;">
+        <b>Please Transfer Funds Directly</b><br><br>
+        <b>Bank</b> &nbsp;&nbsp;&nbsp;: BNI, Acc No 2833518103<br>
+        <b>Name</b> &nbsp;&nbsp;: PT. TELERADIOLOGI CENTER INDONESIA<br>
+        <b>NPWP</b> &nbsp;: 12.655.025.0-015.000
+      </td>
+      <td style="width:45%; vertical-align:top;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <tr><td style="padding:4px 0;">Sub Total</td><td style="text-align:right;">{{sub_total}}</td></tr>
+          <tr><td style="padding:4px 0;">Tax Base Amount</td><td style="text-align:right;">{{dasar_pengenaan_pajak}}</td></tr>
+          <tr><td style="padding:4px 0;">PPN / VAT</td><td style="text-align:right;">{{ppn}}</td></tr>
+          <tr><td style="padding:4px 0;">Withholding Tax</td><td style="text-align:right;">{{withholding_tax}}</td></tr>
+          <tr style="border-top:1px solid #000;"><td style="padding:4px 0;">Total After Withholding</td><td style="text-align:right;">{{total_setelah_potongan}}</td></tr>
+          <tr style="border-top:2px solid #000; font-weight:bold;"><td style="padding:6px 0;">Full Amount</td><td style="text-align:right;">{{full_amount}}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 
-  const isAdmin = currentProfile.role === "admin";
-  const isOwner = item.userId === currentUser.uid;
+  <div style="text-align:right; margin-top:30px; font-size:12px;">
+    PT. TELERADIOLOGI CENTER INDONESIA<br><br><br>
+    <span style="text-decoration:underline;">Slamet Riyanto</span><br>
+    Director
+  </div>
 
-  submitBtn.style.display = !isAdmin && isOwner && item.status === "draft" ? "" : "none";
-  releaseBtn.style.display = isAdmin && item.status === "pending" ? "" : "none";
-  rejectBtn.style.display = isAdmin && item.status === "pending" ? "" : "none";
-
-  detailPanel.style.display = "block";
-  detailPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-printBtn.addEventListener("click", () => {
-  if (!activeDocument) return;
-  const win = window.open("", "_blank");
-  win.document.write(`<html><head><title>${escapeHtml(activeDocument.templateName || "Cetak")}</title></head><body>${activeDocument.renderedHtml}</body></html>`);
-  win.document.close();
-  win.focus();
-  win.print();
-});
-
-downloadPdfBtn.addEventListener("click", () => {
-  if (!activeDocument) return;
-  const filename = fileBaseName(activeDocument);
-  html2pdf().set({
-    margin: 10,
-    filename: `${filename}.pdf`,
-    image: { type: "jpeg", quality: 0.98 },
-    html2canvas: { scale: 2 },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-  }).from(detailPreview).save();
-});
-
-downloadWordBtn.addEventListener("click", () => {
-  if (!activeDocument) return;
-  const filename = fileBaseName(activeDocument);
-  const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
-  const postHtml = "</body></html>";
-  const fullHtml = preHtml + activeDocument.renderedHtml + postHtml;
-  const blob = new Blob(["\ufeff", fullHtml], { type: "application/msword" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${filename}.doc`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-
-shareWaBtn.addEventListener("click", () => shareDocument("wa"));
-shareEmailBtn.addEventListener("click", () => shareDocument("email"));
-
-async function shareDocument(channel) {
-  if (!activeDocument) return;
-  const filename = fileBaseName(activeDocument);
-  const text = `Dokumen: ${activeDocument.templateName}${activeDocument.documentNumber ? " (No. " + activeDocument.documentNumber + ")" : ""}`;
-
-  try {
-    const pdfBlob = await html2pdf().set({
-      margin: 10,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    }).from(detailPreview).outputPdf("blob");
-
-    const file = new File([pdfBlob], `${filename}.pdf`, { type: "application/pdf" });
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: activeDocument.templateName, text });
-      return;
-    }
-  } catch (error) {
-    console.warn("Web Share tidak tersedia, fallback ke link manual:", error);
-  }
-
-  downloadPdfBtn.click();
-  if (channel === "wa") {
-    window.open(`https://wa.me/?text=${encodeURIComponent(text + " (PDF terlampir, silakan lampirkan file yang baru terunduh)")}`, "_blank");
-  } else {
-    window.location.href = `mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent("PDF dokumen terlampir, silakan lampirkan file yang baru terunduh.")}`;
-  }
-  showToast("PDF sudah diunduh. Lampirkan manual di aplikasi yang terbuka.", "info");
-}
-
-submitBtn.addEventListener("click", async () => {
-  if (!activeDocument) return;
-  if (!confirm("Ajukan dokumen ini untuk dirilis? Setelah diajukan, kamu tidak bisa membatalkannya sendiri — tunggu keputusan admin.")) return;
-  try {
-    await updateDoc(doc(db, "documents", activeDocument.id), {
-      status: "pending",
-      updatedAt: serverTimestamp()
-    });
-    showToast("Dokumen berhasil diajukan untuk dirilis.", "success");
-    detailPanel.style.display = "none";
-    loadDocuments();
-  } catch (error) {
-    console.error("Gagal mengajukan rilis:", error);
-    showToast("Gagal mengajukan dokumen. Coba lagi.", "error");
-  }
-});
-
-releaseBtn.addEventListener("click", async () => {
-  if (!activeDocument) return;
-  const nomor = prompt("Masukkan nomor surat:", activeDocument.documentNumber || "");
-  if (nomor === null) return;
-  if (!nomor.trim()) {
-    showToast("Nomor surat wajib diisi.", "error");
-    return;
-  }
-  try {
-    await updateDoc(doc(db, "documents", activeDocument.id), {
-      status: "released",
-      documentNumber: nomor.trim(),
-      rejectionReason: null,
-      releasedAt: serverTimestamp(),
-      releasedBy: currentProfile.username || currentUser.email,
-      updatedAt: serverTimestamp()
-    });
-    showToast("Dokumen disetujui dan berhasil dirilis.", "success");
-    detailPanel.style.display = "none";
-    loadDocuments();
-  } catch (error) {
-    console.error("Gagal merilis dokumen:", error);
-    showToast("Gagal merilis dokumen. Coba lagi.", "error");
-  }
-});
-
-rejectBtn.addEventListener("click", async () => {
-  if (!activeDocument) return;
-  const reason = prompt("Alasan penolakan (boleh dikosongkan):", "");
-  if (reason === null) return;
-  try {
-    await updateDoc(doc(db, "documents", activeDocument.id), {
-      status: "draft",
-      rejectionReason: reason.trim() || null,
-      updatedAt: serverTimestamp()
-    });
-    showToast("Dokumen ditolak dan dikembalikan ke draft.", "success");
-    detailPanel.style.display = "none";
-    loadDocuments();
-  } catch (error) {
-    console.error("Gagal menolak dokumen:", error);
-    showToast("Gagal menolak dokumen. Coba lagi.", "error");
-  }
-});
-
-exportExcelBtn.addEventListener("click", () => {
-  const rows = documentsCache.map((d) => ({
-    "Nomor Surat": d.documentNumber || "-",
-    "Template": d.templateName || "-",
-    "Status": statusInfo(d.status).label,
-    "Dibuat Oleh": d.createdByUsername || "-",
-    "Tanggal Dibuat": formatDate(d.createdAt),
-    "Tanggal Rilis": formatDate(d.releasedAt)
-  }));
-  if (rows.length === 0) {
-    showToast("Tidak ada data untuk diexport.", "error");
-    return;
-  }
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Rekap Surat");
-  XLSX.writeFile(wb, `rekap-surat-${Date.now()}.xlsx`);
-});
-
-function fileBaseName(item) {
-  return (item.documentNumber || item.templateName || "dokumen").replace(/[^a-zA-Z0-9]+/g, "-");
-}
-
-function tsToMillis(ts) {
-  if (!ts) return 0;
-  return ts.toMillis ? ts.toMillis() : 0;
-}
-
-function formatDate(ts) {
-  if (!ts || !ts.toDate) return "-";
-  return ts.toDate().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
+  <div style="font-size:10px; margin-top:30px; border-top:1px solid #ccc; padding-top:8px;">
+    * According to Indonesia Tax Regulation, please deduct 2% Wht Art 23 from amount before VAT and submit Withholding Tax Slip to us by email: wiwin26@tcihealth.co.id<br>
+    * It will be considered as
