@@ -1,6 +1,10 @@
 // ===========================================================
 // template-editor.js — Logic halaman pages/template-editor.html
 // Mode: buat baru (tanpa ?id=) atau edit (dengan ?id=xxx)
+// Editor visual: kanvas contenteditable (#tplCanvas) sebagai tampilan utama,
+// disinkronkan otomatis ke textarea tersembunyi (#tplHtml) yang menyimpan
+// HTML asli dengan token {{nama_field}} — supaya kompatibel penuh dengan
+// renderTemplate() dan create-document.js tanpa perlu diubah.
 // ===========================================================
 
 import { requireAuth, requireRole, logout } from "./auth.js";
@@ -26,6 +30,7 @@ const tplName = document.getElementById("tplName");
 const tplCategory = document.getElementById("tplCategory");
 const tplDescription = document.getElementById("tplDescription");
 const tplHtml = document.getElementById("tplHtml");
+const tplCanvas = document.getElementById("tplCanvas");
 
 const fieldsList = document.getElementById("fieldsList");
 const fieldsEmptyState = document.getElementById("fieldsEmptyState");
@@ -89,6 +94,7 @@ async function loadExistingTemplate(id) {
     tplHtml.value = data.html || "";
     fields = (data.fields || []).map((f) => ({ ...f, uid: "f" + (fieldUidCounter++) }));
     renderFields();
+    renderCanvasFromHtml();
   } catch (error) {
     console.error("Gagal memuat template:", error);
     showFormError("Gagal memuat data template. Coba refresh halaman.");
@@ -154,6 +160,7 @@ fieldsList.addEventListener("input", (e) => {
     renderPlaceholderChips();
   } else if (e.target.classList.contains("f-label")) {
     f.label = e.target.value;
+    syncChipLabels();
   } else if (e.target.classList.contains("f-options")) {
     f.options = e.target.value;
   }
@@ -188,27 +195,83 @@ function renderPlaceholderChips() {
     return;
   }
   placeholderChips.innerHTML = namedFields.map((f) =>
-    `<button type="button" class="chip" data-name="${escapeAttr(f.name)}">{{${escapeAttr(f.name)}}}</button>`
+    `<button type="button" class="chip" data-name="${escapeAttr(f.name)}">+ ${escapeAttr(f.label || f.name)}</button>`
   ).join("");
 }
 
 placeholderChips.addEventListener("click", (e) => {
   const chip = e.target.closest(".chip");
   if (!chip) return;
-  const insertText = `{{${chip.dataset.name}}}`;
-  const start = tplHtml.selectionStart ?? tplHtml.value.length;
-  const end = tplHtml.selectionEnd ?? tplHtml.value.length;
-  tplHtml.value = tplHtml.value.slice(0, start) + insertText + tplHtml.value.slice(end);
-  tplHtml.focus();
-  tplHtml.selectionStart = tplHtml.selectionEnd = start + insertText.length;
+  const name = chip.dataset.name;
+  const f = fields.find((x) => x.name === name);
+  const label = f ? (f.label || f.name) : name;
+  insertFieldChipAtCursor(name, label);
 });
+
+// ---------- Sinkronisasi kanvas visual <-> tplHtml (sumber data asli) ----------
+
+function insertFieldChipAtCursor(name, label) {
+  tplCanvas.focus();
+  const sel = window.getSelection();
+  if (!sel.rangeCount || !tplCanvas.contains(sel.anchorNode)) {
+    const range = document.createRange();
+    range.selectNodeContents(tplCanvas);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  document.execCommand(
+    "insertHTML",
+    false,
+    `<span class="field-chip" contenteditable="false" data-field="${name}">${escapeAttr(label)}</span>&nbsp;`
+  );
+  syncCanvasToHtml();
+}
+
+function syncCanvasToHtml() {
+  const clone = tplCanvas.cloneNode(true);
+  clone.querySelectorAll(".field-chip").forEach((chip) => {
+    const token = document.createTextNode(`{{${chip.dataset.field}}}`);
+    chip.replaceWith(token);
+  });
+  tplHtml.value = clone.innerHTML;
+}
+
+function renderCanvasFromHtml() {
+  const html = tplHtml.value || "";
+  tplCanvas.innerHTML = html.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, name) => {
+    const f = fields.find((x) => x.name === name);
+    const label = f ? (f.label || f.name) : name;
+    return `<span class="field-chip" contenteditable="false" data-field="${name}">${escapeAttr(label)}</span>`;
+  });
+}
+
+function syncChipLabels() {
+  tplCanvas.querySelectorAll(".field-chip").forEach((chip) => {
+    const f = fields.find((x) => x.name === chip.dataset.field);
+    if (f) chip.textContent = f.label || f.name;
+  });
+  syncCanvasToHtml();
+}
+
+tplCanvas.addEventListener("input", syncCanvasToHtml);
+
+document.querySelectorAll(".editor-toolbar button[data-cmd]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    tplCanvas.focus();
+    document.execCommand(btn.dataset.cmd, false, null);
+    syncCanvasToHtml();
+  });
+});
+
+// ---------- Preview & Simpan (tidak berubah, tetap pakai tplHtml.value) ----------
 
 previewBtn.addEventListener("click", () => {
   const sampleData = {};
   fields.forEach((f) => {
     if (f.name) sampleData[f.name] = `[Contoh: ${f.label || f.name}]`;
   });
-  previewContent.innerHTML = renderTemplate(tplHtml.value, sampleData) || "<p style='color:#999;'>Isi HTML masih kosong.</p>";
+  previewContent.innerHTML = renderTemplate(tplHtml.value, sampleData) || "<p style='color:#999;'>Isi surat masih kosong.</p>";
   previewOverlay.classList.add("show");
 });
 closePreviewBtn.addEventListener("click", () => previewOverlay.classList.remove("show"));
@@ -218,6 +281,7 @@ previewOverlay.addEventListener("click", (e) => {
 
 saveBtn.addEventListener("click", async () => {
   clearFormError();
+  syncCanvasToHtml();
 
   const name = tplName.value.trim();
   const category = tplCategory.value.trim();
