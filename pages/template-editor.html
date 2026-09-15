@@ -80,17 +80,28 @@
         </div>
       </div>
 
-      <div class="panel">
-        <h2 class="section-title">Isi Surat (HTML)</h2>
+        <div class="panel">
+        <h2 class="section-title">Isi Surat</h2>
         <p class="field-hint" style="margin-bottom:10px;">
-          Tulis isi surat bebas pakai HTML. Sisipkan placeholder field dengan mengklik chip di bawah,
-          atau ketik manual dengan format <code>{{nama_field}}</code>.
+          Ketik teks bebas untuk bagian yang tetap sama (teks statis). Klik salah satu tombol field
+          di bawah untuk menyisipkan data yang nanti diisi user (muncul sebagai kotak hijau).
         </p>
-        <div id="placeholderChips" class="chip-row"></div>
-        <textarea id="tplHtml" class="html-editor" rows="14" placeholder="&lt;h1&gt;SURAT TUGAS&lt;/h1&gt;&#10;&#10;&lt;p&gt;Nomor: {{nomor_surat}}&lt;/p&gt;&#10;&lt;p&gt;Nama: {{nama}}&lt;/p&gt;"></textarea>
+
+        <div id="placeholderChips" class="chip-row" style="margin-bottom:10px;"></div>
+
+        <div class="editor-toolbar">
+          <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+          <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+          <button type="button" data-cmd="underline" title="Underline"><u>U</u></button>
+          <button type="button" data-cmd="justifyLeft" title="Rata Kiri">&#8676;</button>
+          <button type="button" data-cmd="justifyCenter" title="Rata Tengah">&#8646;</button>
+          <button type="button" data-cmd="justifyRight" title="Rata Kanan">&#8677;</button>
+          <button type="button" data-cmd="insertUnorderedList" title="Bullet List">&bull; List</button>
+        </div>
+
+        <div id="tplCanvas" class="tpl-canvas" contenteditable="true"></div>
+        <textarea id="tplHtml" style="display:none;"></textarea>
       </div>
-    </main>
-  </div>
 
   <nav class="bottom-nav">
     <a class="nav-link" href="../admin.html">Dashboard</a>
