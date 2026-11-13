@@ -1,15 +1,14 @@
 // ===========================================================
 // auth.js — Logic autentikasi & pengecekan role
 // Dipakai bersama oleh login.js, dashboard.js, admin.js, dll.
-// Frontend guard di sini HANYA untuk UX (redirect cepat).
-// Keamanan sesungguhnya tetap di Firestore Security Rules.
 // ===========================================================
 
 import { auth, db } from "./firebase-config.js";
 import {
   signInWithEmailAndPassword,
   signOut as fbSignOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  sendPasswordResetEmail // <-- 1. Tambahkan fungsi ini di baris import
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   doc,
@@ -43,12 +42,16 @@ export async function login(email, password) {
   return signInWithEmailAndPassword(auth, email, password);
 }
 
-/**
- * Prefix relatif untuk kembali ke root situs, tergantung kedalaman
- * folder halaman saat ini. Supaya redirect tetap benar baik dari
- * root (index.html, admin.html) maupun dari dalam pages/ (users.html, dst),
- * di hosting mana pun (Netlify di root, GitHub Pages di subfolder repo).
- */
+// ===========================================================
+// 2. Tambahkan fungsi baru ini di bagian bawah auth.js
+// ===========================================================
+export async function resetPassword(email) {
+  if (!email) {
+    throw new Error("Masukkan email terlebih dahulu.");
+  }
+  return sendPasswordResetEmail(auth, email);
+}
+
 function pagePrefix() {
   return window.location.pathname.includes("/pages/") ? "../" : "";
 }
