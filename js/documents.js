@@ -1,80 +1,91 @@
-<div style="font-family: Arial, sans-serif; font-size: 13px; color: #000; max-width: 750px; margin: 0 auto;">
+import { db, auth } from './firebase-config.js';
+import { collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-  <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px;">
-    <svg width="56" height="34" viewBox="0 0 56 34" xmlns="http://www.w3.org/2000/svg">
-      <rect x="8" y="0" width="12" height="30" fill="#2FE6A6"/>
-      <rect x="0" y="9" width="28" height="12" fill="#2FE6A6"/>
-      <path d="M 21 21 a 13 13 0 1 1 -13 13 l 8 0 a 5 5 0 1 0 5 -5 z" fill="#2FE6A6"/>
-    </svg>
-    <div>
-      <div style="font-weight:bold; font-size:15px; color:#0a3d38;">Teleradiologi Center Indonesia</div>
-      <div style="font-size:11px; line-height:1.4;">
-        Graha Pratama, Jl. Letjen M.T. Haryono No.Kav. 15 Building 11th Floor,<br>
-        Tebet Bar., Kec. Tebet, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta 12810
-      </div>
-    </div>
-  </div>
+// 1. Cek Sesi Login & Ambil Profil User dari Firestore
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
 
-  <div style="border:2px solid #000; text-align:center; font-size:20px; font-weight:bold; letter-spacing:4px; padding:6px 0; margin:14px 0;">
-    INVOICE
-  </div>
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Tampilkan nama dan role di sidebar
+        document.getElementById("userName").textContent = userData.username || user.email;
+        const roleBadge = document.getElementById("userRoleBadge");
+        
+        if (userData.role === "admin") {
+          roleBadge.textContent = "Admin";
+          document.querySelectorAll(".admin-only").forEach(el => {
+            el.style.display = "inline-block";
+          });
+        } else {
+          roleBadge.textContent = "User";
+        }
 
-  <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
-    <tr>
-      <td style="width:50%; vertical-align:top; font-size:12px; line-height:1.6;">
-        <b>Name</b> &nbsp;&nbsp;: {{nama_klien}}<br>
-        <b>Attn</b> &nbsp;&nbsp;&nbsp;&nbsp;: {{attn}}<br>
-        <b>Address</b> : {{alamat_klien}}<br>
-        <b>NPWP</b> &nbsp;: {{npwp_klien}}
-      </td>
-      <td style="width:50%; vertical-align:top; font-size:12px; line-height:1.6;">
-        <b>No. Invoice</b> : {{no_invoice}}<br>
-        <b>Date</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {{tanggal_invoice}}<br>
-        <b>Due Date</b> &nbsp;: {{tanggal_jatuh_tempo}}
-      </td>
-    </tr>
-  </table>
+        // Inisial avatar
+        const initial = (userData.username || user.email).charAt(0).toUpperCase();
+        document.getElementById("userInitial").textContent = initial;
+        
+        // Muat data dokumen
+        loadDocumentsTable(user.uid, userData.role);
+      } else {
+        console.error("Dokumen profil user tidak ditemukan di koleksi users!");
+      }
+    } catch (error) {
+      console.error("Gagal memuat profil user:", error);
+    }
+  } else {
+    // Jika belum login, lempar ke halaman utama/login
+    window.location.href = "../index.html";
+  }
+});
 
-  <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:16px;">
-    <tr style="background:#f0f0f0;">
-      <th style="border:1px solid #000; padding:8px; text-align:left;">Details for Period {{periode}}</th>
-      <th style="border:1px solid #000; padding:8px; text-align:center; width:120px;">Product Line</th>
-      <th style="border:1px solid #000; padding:8px; text-align:right; width:130px;">Amount (IDR)</th>
-    </tr>
-    <tr>
-      <td style="border:1px solid #000; padding:8px; vertical-align:top; height:80px;">{{deskripsi_layanan}}</td>
-      <td style="border:1px solid #000; padding:8px; text-align:center; vertical-align:top;">{{product_line}}</td>
-      <td style="border:1px solid #000; padding:8px; text-align:right; vertical-align:top;">{{jumlah}}</td>
-    </tr>
-  </table>
+// 2. Fungsi Tombol Logout
+document.querySelectorAll(".js-logout").forEach(btn => {
+  btn.addEventListener("click", () => {
+    signOut(auth).then(() => {
+      window.location.href = "../index.html";
+    }).catch((error) => {
+      console.error("Gagal keluar:", error);
+    });
+  });
+});
 
-  <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
-    <tr>
-      <td style="width:55%; vertical-align:top; font-size:12px;">
-        <b>Please Transfer Funds Directly</b><br><br>
-        <b>Bank</b> &nbsp;&nbsp;&nbsp;: BNI, Acc No 2833518103<br>
-        <b>Name</b> &nbsp;&nbsp;: PT. TELERADIOLOGI CENTER INDONESIA<br>
-        <b>NPWP</b> &nbsp;: 12.655.025.0-015.000
-      </td>
-      <td style="width:45%; vertical-align:top;">
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <tr><td style="padding:4px 0;">Sub Total</td><td style="text-align:right;">{{sub_total}}</td></tr>
-          <tr><td style="padding:4px 0;">Tax Base Amount</td><td style="text-align:right;">{{dasar_pengenaan_pajak}}</td></tr>
-          <tr><td style="padding:4px 0;">PPN / VAT</td><td style="text-align:right;">{{ppn}}</td></tr>
-          <tr><td style="padding:4px 0;">Withholding Tax</td><td style="text-align:right;">{{withholding_tax}}</td></tr>
-          <tr style="border-top:1px solid #000;"><td style="padding:4px 0;">Total After Withholding</td><td style="text-align:right;">{{total_setelah_potongan}}</td></tr>
-          <tr style="border-top:2px solid #000; font-weight:bold;"><td style="padding:6px 0;">Full Amount</td><td style="text-align:right;">{{full_amount}}</td></tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+// 3. Fungsi Render Tabel Dokumen
+async function loadDocumentsTable(uid, role) {
+  const tbody = document.getElementById("documentsTableBody");
+  if (!tbody) return;
 
-  <div style="text-align:right; margin-top:30px; font-size:12px;">
-    PT. TELERADIOLOGI CENTER INDONESIA<br><br><br>
-    <span style="text-decoration:underline;">Slamet Riyanto</span><br>
-    Director
-  </div>
+  try {
+    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Memuat data...</td></tr>`;
+    const querySnapshot = await getDocs(collection(db, "documents"));
+    
+    tbody.innerHTML = "";
+    if (querySnapshot.empty) {
+      tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Belum ada dokumen.</td></tr>`;
+      return;
+    }
 
-  <div style="font-size:10px; margin-top:30px; border-top:1px solid #ccc; padding-top:8px;">
-    * According to Indonesia Tax Regulation, please deduct 2% Wht Art 23 from amount before VAT and submit Withholding Tax Slip to us by email: wiwin26@tcihealth.co.id<br>
-    * It will be considered as
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      // Filter jika bukan admin, hanya tampilkan dokumen milik sendiri (jika ada field userId)
+      if (role !== "admin" && data.userId && data.userId !== uid) return;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${data.nomor_surat || '-'}</td>
+        <td>${data.template_name || 'Invoice'}</td>
+        <td>${data.tanggal_dibuat || '-'}</td>
+        <td><span class="badge">${data.status || 'Draft'}</span></td>
+        <td><button class="btn btn-sm" onclick="alert('Detail dokumen')">Lihat</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (error) {
+    console.error("Gagal mengambil data dokumen:", error);
+    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Gagal memuat data.</td></tr>`;
+  }
+}
