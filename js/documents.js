@@ -1,4 +1,4 @@
-import { db, auth } from './firebase-config.js';
+import { db, auth } from '../js/firebase-config.js';
 import { collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -6,6 +6,11 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     try {
+      if (!db) {
+        console.error("Database belum terinisialisasi dengan benar.");
+        return;
+      }
+
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
@@ -13,23 +18,28 @@ onAuthStateChanged(auth, async (user) => {
         const userData = userDoc.data();
         
         // Tampilkan nama dan role di sidebar
-        document.getElementById("userName").textContent = userData.username || user.email;
-        const roleBadge = document.getElementById("userRoleBadge");
+        const userNameEl = document.getElementById("userName");
+        if (userNameEl) userNameEl.textContent = userData.username || user.email;
         
-        if (userData.role === "admin") {
-          roleBadge.textContent = "Admin";
-          document.querySelectorAll(".admin-only").forEach(el => {
-            el.style.display = "inline-block";
-          });
-        } else {
-          roleBadge.textContent = "User";
+        const roleBadge = document.getElementById("userRoleBadge");
+        if (roleBadge) {
+          if (userData.role === "admin") {
+            roleBadge.textContent = "Admin";
+            document.querySelectorAll(".admin-only").forEach(el => {
+              el.style.display = "inline-block";
+            });
+          } else {
+            roleBadge.textContent = "User";
+          }
         }
 
         // Inisial avatar
-        const initial = (userData.username || user.email).charAt(0).toUpperCase();
-        document.getElementById("userInitial").textContent = initial;
+        const userInitialEl = document.getElementById("userInitial");
+        if (userInitialEl) {
+          userInitialEl.textContent = (userData.username || user.email).charAt(0).toUpperCase();
+        }
         
-        // Muat data dokumen
+        // Muat data tabel dokumen
         loadDocumentsTable(user.uid, userData.role);
       } else {
         console.error("Dokumen profil user tidak ditemukan di koleksi users!");
@@ -38,7 +48,7 @@ onAuthStateChanged(auth, async (user) => {
       console.error("Gagal memuat profil user:", error);
     }
   } else {
-    // Jika belum login, lempar ke halaman utama/login
+    // Jika belum login, arahkan kembali ke halaman utama
     window.location.href = "../index.html";
   }
 });
@@ -61,6 +71,7 @@ async function loadDocumentsTable(uid, role) {
 
   try {
     tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Memuat data...</td></tr>`;
+    
     const querySnapshot = await getDocs(collection(db, "documents"));
     
     tbody.innerHTML = "";
@@ -71,21 +82,35 @@ async function loadDocumentsTable(uid, role) {
 
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      // Filter jika bukan admin, hanya tampilkan dokumen milik sendiri
+      
+      // Jika bukan admin, hanya tampilkan dokumen miliknya sendiri
       if (role !== "admin" && data.userId && data.userId !== uid) return;
 
       const tr = document.createElement("tr");
+      
       tr.innerHTML = `
         <td>${data.nomor_surat || '-'}</td>
         <td>${data.template_name || 'Invoice'}</td>
         <td>${data.tanggal_dibuat || '-'}</td>
+        <td class="admin-only" style="display: ${role === 'admin' ? 'table-cell' : 'none'};">${data.creator_name || data.userEmail || '-'}</td>
         <td><span class="badge">${data.status || 'Draft'}</span></td>
-        <td><button class="btn btn-sm" onclick="alert('Detail dokumen')">Lihat</button></td>
+        <td><button class="btn btn-sm view-doc-btn" data-id="${docSnap.id}">Lihat</button></td>
       `;
       tbody.appendChild(tr);
     });
+
+    // Event listener untuk tombol "Lihat" detail dokumen
+    document.querySelectorAll(".view-doc-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const docId = e.target.getAttribute("data-id");
+        alert("Melihat detail dokumen ID: " + docId);
+        const detailPanel = document.getElementById("detailPanel");
+        if (detailPanel) detailPanel.style.display = "block";
+      });
+    });
+
   } catch (error) {
     console.error("Gagal mengambil data dokumen:", error);
-    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Gagal memuat data.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Gagal memuat data dari database.</td></tr>`;
   }
 }
