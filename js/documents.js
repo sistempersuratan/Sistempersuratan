@@ -2,12 +2,11 @@ import { db, auth } from '../js/firebase-config.js';
 import { collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// 1. Cek Sesi Login & Ambil Profil User dari Firestore
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     try {
       if (!db) {
-        console.error("Database belum terinisialisasi dengan benar.");
+        console.error("Database belum terinisialisasi.");
         return;
       }
 
@@ -17,7 +16,6 @@ onAuthStateChanged(auth, async (user) => {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         
-        // Tampilkan nama dan role di sidebar
         const userNameEl = document.getElementById("userName");
         if (userNameEl) userNameEl.textContent = userData.username || user.email;
         
@@ -33,27 +31,23 @@ onAuthStateChanged(auth, async (user) => {
           }
         }
 
-        // Inisial avatar
         const userInitialEl = document.getElementById("userInitial");
         if (userInitialEl) {
           userInitialEl.textContent = (userData.username || user.email).charAt(0).toUpperCase();
         }
         
-        // Muat data tabel dokumen
         loadDocumentsTable(user.uid, userData.role);
       } else {
-        console.error("Dokumen profil user tidak ditemukan di koleksi users!");
+        console.error("Profil user tidak ditemukan!");
       }
     } catch (error) {
-      console.error("Gagal memuat profil user:", error);
+      console.error("Gagal memuat profil:", error);
     }
   } else {
-    // Jika belum login, arahkan kembali ke halaman utama
     window.location.href = "../index.html";
   }
 });
 
-// 2. Fungsi Tombol Logout
 document.querySelectorAll(".js-logout").forEach(btn => {
   btn.addEventListener("click", () => {
     signOut(auth).then(() => {
@@ -64,7 +58,6 @@ document.querySelectorAll(".js-logout").forEach(btn => {
   });
 });
 
-// 3. Fungsi Render Tabel Dokumen
 async function loadDocumentsTable(uid, role) {
   const tbody = document.getElementById("documentsTableBody");
   if (!tbody) return;
@@ -83,11 +76,9 @@ async function loadDocumentsTable(uid, role) {
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       
-      // Jika bukan admin, hanya tampilkan dokumen miliknya sendiri
       if (role !== "admin" && data.userId && data.userId !== uid) return;
 
       const tr = document.createElement("tr");
-      
       tr.innerHTML = `
         <td>${data.nomor_surat || '-'}</td>
         <td>${data.template_name || 'Invoice'}</td>
@@ -99,11 +90,10 @@ async function loadDocumentsTable(uid, role) {
       tbody.appendChild(tr);
     });
 
-    // Event listener untuk tombol "Lihat" detail dokumen
     document.querySelectorAll(".view-doc-btn").forEach(btn => {
       btn.addEventListener("click", (e) => {
         const docId = e.target.getAttribute("data-id");
-        alert("Melihat detail dokumen ID: " + docId);
+        alert("Detail dokumen ID: " + docId);
         const detailPanel = document.getElementById("detailPanel");
         if (detailPanel) detailPanel.style.display = "block";
       });
