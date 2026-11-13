@@ -1,6 +1,6 @@
 import { db, auth } from './firebase-config.js';
-import { collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 // 1. Cek Sesi Login & Ambil Profil User dari Firestore
 onAuthStateChanged(auth, async (user) => {
@@ -71,7 +71,7 @@ async function loadDocumentsTable(uid, role) {
 
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      // Filter jika bukan admin, hanya tampilkan dokumen milik sendiri (jika ada field userId)
+      // Filter jika bukan admin, hanya tampilkan dokumen milik sendiri
       if (role !== "admin" && data.userId && data.userId !== uid) return;
 
       const tr = document.createElement("tr");
