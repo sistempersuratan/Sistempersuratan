@@ -1,182 +1,123 @@
-Sistem Persuratan
+# Sistem Persuratan
+
 Aplikasi web untuk membuat surat/dokumen dari template siap pakai.
-Dibangun dengan HTML + CSS + JavaScript (vanilla, ES Modules) dan Firebase
-(Authentication + Firestore). Tanpa framework frontend, tanpa backend Node.js
-khusus — Firebase menjadi backend, Netlify menjadi hosting.
-> **Status:** STEP 1 — struktur dasar, login (berbasis **username**, bukan
-> email), dan pemisahan dashboard user/admin berdasarkan role. Fitur
-> template & dokumen menyusul di STEP berikutnya.
-Login: Username, tapi tetap Firebase Auth
-Firebase Authentication secara native hanya mengenal email+password. Agar
-user bisa login pakai username, alurnya:
-User mengetik username di `index.html`.
-`auth.js` (`getEmailByUsername`) mencari dokumen di collection `users`
-yang field `username`-nya cocok, lalu mengambil `email` di dalamnya.
-Email itu dipakai memanggil `signInWithEmailAndPassword` seperti biasa —
-Firebase Auth tidak diubah sama sekali, hanya "dijembatani".
-Konsekuensi: setiap dokumen di `users` wajib punya field `username`
-(unik) selain `email`, dan Firestore perlu mengizinkan query pencarian
-username ini meski user belum login (lihat Security Rules di bawah).
-Struktur Project
+HTML + CSS + JavaScript vanilla (ES Modules) dengan Firebase
+(Authentication + Firestore) sebagai backend. Hosting statis di GitHub Pages.
+
+**Live:** https://sistempersuratan.github.io/Sistempersuratan/
+
+## Fitur
+
+| Peran | Bisa melakukan |
+|---|---|
+| **Admin** | Kelola user, kelola template (buat/edit/nonaktifkan/hapus), lihat semua dokumen, setujui/tolak dokumen, export rekap Excel |
+| **User** | Pilih template, isi form, simpan draft, edit/hapus draft, ajukan rilis, lihat dokumen sendiri, cetak / PDF / Word / kirim WA & Email |
+
+### Alur dokumen
+
 ```
-persuratan/
-├── index.html            # Halaman login
-├── dashboard.html         # Dashboard user
-├── admin.html              # Dashboard admin
-├── pages/                    # Halaman tambahan (STEP berikutnya)
-├── css/
-│   ├── style.css            # Token desain + halaman login
-│   ├── dashboard.css     # Layout sidebar/bottom-nav
-│   └── admin.css           # Style tambahan khusus admin
-├── js/
-│   ├── firebase-config.js  # Init Firebase (SATU-SATUNYA tempat config)
-│   ├── auth.js                  # Logic login/logout/guard role (reusable)
-│   ├── ui.js                     # Toast & helper UI kecil (reusable)
-│   ├── login.js                # Logic halaman index.html
-│   ├── dashboard.js       # Logic halaman dashboard.html
-│   └── admin.js               # Logic halaman admin.html
-└── assets/
-    ├── logo.png
-    └── favicon.png
+User buat dokumen ──► DRAFT ──(user ajukan)──► PENDING ──(admin setujui + isi nomor)──► RILIS
+                        ▲                          │
+                        └──────(admin tolak)───────┘
 ```
-1. Setup Firebase
-Buka Firebase Console → Add
-project → beri nama (mis. `sistem-persuratan`).
-Di dalam project, buka Build → Authentication → Get started → aktifkan
-sign-in method Email/Password.
-Buka Build → Firestore Database → Create database → pilih mode
-Production → pilih region terdekat (mis. `asia-southeast2`).
-Buka Project settings (ikon gerigi) → General → Your apps → klik ikon
-web `</>` → daftarkan app (nama bebas) → jangan centang Firebase
-Hosting (kita pakai Netlify).
-Salin objek `firebaseConfig` yang muncul, lalu tempel ke
-`js/firebase-config.js` menggantikan nilai `GANTI_...`.
-Buka Firestore Database → Rules, tempel isi berikut, lalu Publish:
-```js
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
+- Draft boleh diedit/dihapus pemiliknya. Setelah diajukan (pending) dan setelah
+  rilis, user tidak bisa mengubahnya lagi.
+- Nomor surat diisi admin saat merilis.
+- Aturan ini **dijaga di Firestore Security Rules** (bukan cuma di tampilan).
 
-    function myProfile() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
+## Struktur Project
 
-    function isAdmin() {
-      return isSignedIn() && myProfile().role == 'admin';
-    }
-
-    match /users/{userId} {
-      // get(): profil sendiri atau admin
-      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-
-      // list(): dibutuhkan agar halaman login bisa mencari email dari
-      // username SEBELUM user berhasil login (request.auth == null di sini).
-      // Dibatasi limit(1) supaya tidak bisa dipakai men-dump seluruh
-      // collection sekaligus — tetap ada risiko satu-per-satu (brute force
-      // username), jadi pertimbangkan rate limiting di App Check/Netlify
-      // jika ini jadi perhatian.
-      allow list: if request.query.limit <= 1;
-
-      allow create: if isAdmin();
-      allow update: if isAdmin()
-                    || (request.auth.uid == userId
-                        && request.resource.data.role == resource.data.role
-                        && request.resource.data.active == resource.data.active
-                        && request.resource.data.username == resource.data.username);
-      allow delete: if isAdmin();
-    }
-
-    match /templates/{templateId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /documents/{documentId} {
-      allow read: if isSignedIn() &&
-                  (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() &&
-                  (resource.data.userId == request.auth.uid || isAdmin());
-    }
-
-    match /settings/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-  }
-}
 ```
-Catatan: rule di atas mencegah user mengubah `role`/`active` miliknya sendiri
-(sesuai poin 13 di spesifikasi) — hanya admin yang boleh mengubah dua field
-itu.
-2. Membuat Admin Pertama
-Karena STEP 1 belum memiliki halaman "Kelola User", admin pertama dibuat
-manual satu kali:
-Buka Authentication → Users → Add user → masukkan email & password →
-Add user. Salin User UID yang muncul.
-Buka Firestore Database → Start collection → Collection ID: `users`.
-Document ID: tempel UID dari langkah 1. Isi field:
-Field	Type	Value
-name	string	Nama Admin
-username	string	mis. `admin` (harus unik, dipakai untuk login)
-email	string	(sama dengan email di Authentication)
-role	string	`admin`
-active	boolean	`true`
-createdAt	timestamp	(klik "current date")
-updatedAt	timestamp	(klik "current date")
-Save. Login sekarang memakai username di atas (bukan email) + password
-dari langkah 1.
-Untuk user biasa, ulangi langkah yang sama dengan `role: "user"` dan
-`username` yang berbeda — proses ini akan digantikan halaman Kelola User
-di STEP 2. Pastikan setiap `username` unik; STEP 1 belum memvalidasi
-duplikasi secara otomatis.
-3. Menjalankan Project Secara Lokal
-Karena semua modul JavaScript pakai `type="module"`, file harus dibuka lewat
-server lokal (bukan `file://`), agar tidak kena batasan CORS browser.
-Pilih salah satu:
+index.html            Login (pakai username)
+dashboard.html        Dashboard user
+admin.html            Dashboard admin
+firestore.rules       Security Rules (salin ke Firebase Console)
+css/                  style, dashboard, admin, template-editor
+js/
+  firebase-config.js  Satu-satunya tempat inisialisasi Firebase
+  auth.js             Login username, guard login & role, logout
+  ui.js               Toast, loading tombol, pesan error ramah
+  template-engine.js  renderTemplate() untuk ganti {{placeholder}}
+  login.js, dashboard.js, admin.js
+  users.js, templates.js, template-editor.js
+  create-document.js, documents.js
+pages/
+  users.html, templates.html, template-editor.html
+  create-document.html, documents.html
+```
+
+## Login dengan username
+
+Firebase Auth hanya mengenal email+password, jadi `auth.js` mencari `email`
+berdasarkan `username` di collection `users`, lalu memanggil
+`signInWithEmailAndPassword`. Setiap dokumen `users` wajib punya `username`
+yang unik.
+
+## Struktur data Firestore
+
+- `users/{uid}`: `username`, `email`, `role` (`admin`/`user`), `active`, `createdAt`, `updatedAt`
+- `templates/{id}`: `name`, `category`, `description`, `html`, `fields[]`
+  (`name`, `label`, `type`, `required`, `options`), `active`, `createdAt`, `updatedAt`
+- `documents/{id}`: `userId`, `createdByUsername`, `templateId`, `templateName`,
+  `data`, `renderedHtml`, `status` (`draft`/`pending`/`released`), `documentNumber`,
+  `rejectionReason`, `releasedAt`, `releasedBy`, `createdAt`, `updatedAt`
+
+## Setup Firebase
+
+1. Buat project di [Firebase Console](https://console.firebase.google.com).
+2. **Authentication** → aktifkan sign-in **Email/Password**.
+   Tambahkan domain hosting ke **Authentication → Settings → Authorized domains**
+   (contoh: `sistempersuratan.github.io`).
+3. **Firestore Database** → Create database (mode Production).
+4. **Project settings → Your apps → Web app** → salin `firebaseConfig` ke
+   `js/firebase-config.js`.
+5. **Firestore → Rules** → tempel seluruh isi file `firestore.rules` → **Publish**.
+   Ulangi langkah ini setiap kali file itu berubah.
+
+### Membuat admin pertama (sekali saja)
+
+1. **Authentication → Users → Add user** (email + password). Salin **User UID**.
+2. **Firestore → Start collection `users`**, Document ID = UID tadi, isi:
+
+   | Field | Type | Value |
+   |---|---|---|
+   | username | string | mis. `admin` (unik, untuk login) |
+   | email | string | sama dengan email di Authentication |
+   | role | string | `admin` |
+   | active | boolean | `true` |
+   | createdAt | timestamp | waktu sekarang |
+   | updatedAt | timestamp | waktu sekarang |
+
+User berikutnya dibuat dari halaman **Kelola User**. Membuat user baru memakai
+instance Firebase sementara supaya sesi login admin tidak berpindah.
+
+## Menjalankan lokal
+
+Wajib lewat server lokal (bukan `file://`) karena memakai ES Modules:
+
 ```bash
-# Opsi A — pakai Python (biasanya sudah terpasang)
-cd persuratan
-python3 -m http.server 5500
-# lalu buka http://localhost:5500
-
-# Opsi B — pakai Node.js
-npx serve .
+python3 -m http.server 5500   # lalu buka http://localhost:5500
 ```
-Atau gunakan ekstensi Live Server di VS Code (klik kanan `index.html` →
-"Open with Live Server").
-4. Deploy ke Netlify (ringkas — detail lengkap juga di chat)
-Push ke GitHub: `git init && git add . && git commit -m "STEP 1"`,
-buat repo baru di GitHub, lalu `git remote add origin <url>` dan
-`git push -u origin main`.
-Connect ke Netlify: di app.netlify.com →
-Add new site → Import an existing project → pilih repo GitHub tadi.
-Build settings: build command kosongkan, publish directory `.`
-(karena tidak ada proses build — murni static).
-Deploy → Netlify akan memberi domain seperti `nama-acak.netlify.app`.
-Tambahkan domain ke Firebase: buka Authentication → Settings →
-Authorized domains → Add domain, masukkan domain Netlify tadi (dan
-domain custom jika ada nanti).
-Checklist Pengujian STEP 1
-[ ] Buka `index.html` lewat server lokal, form login tampil rapi (desktop
-& mobile).
-[ ] Login dengan username yang tidak terdaftar → muncul pesan
-"Username atau password salah." (bukan error teknis Firebase).
-[ ] Login dengan username benar tapi password salah → pesan yang sama
-(tidak membocorkan mana yang salah, username atau password).
-[ ] Login dengan akun admin → diarahkan ke `admin.html`, bukan
-`dashboard.html`.
-[ ] Login dengan akun user biasa → diarahkan ke `dashboard.html`.
-[ ] Nama & inisial di sidebar sesuai field `name` di Firestore.
-[ ] Tombol Keluar berhasil logout dan kembali ke `index.html`.
-[ ] Membuka `dashboard.html` atau `admin.html` langsung tanpa login →
-otomatis dilempar ke `index.html`.
-[ ] Login sebagai user lalu membuka `admin.html` secara manual →
-ditolak, dilempar balik ke `dashboard.html`.
-[ ] Set `active: false` pada user di Firestore → user tersebut gagal login
-(langsung ter-logout dengan pesan akun dinonaktifkan).
-[ ] Layout sidebar berubah jadi bottom navigation di lebar layar < 860px.
+
+## Deploy (GitHub Pages)
+
+Repo → **Settings → Pages** → Source: *Deploy from a branch*, branch `main`,
+folder `/ (root)`. File `.nojekyll` sudah ada. Semua path di kode bersifat
+relatif (helper `pagePrefix()` di `auth.js`), jadi aman di subfolder
+`/Sistempersuratan/`.
+
+## Checklist pengujian
+
+- [ ] Login username berhasil; admin ke `admin.html`, user ke `dashboard.html`.
+- [ ] User **tidak** bisa membuka halaman admin (dilempar balik).
+- [ ] User membuat dokumen → status Draft; tombol Edit & Hapus muncul.
+- [ ] Edit draft → perubahan tersimpan, isi pratinjau ikut berubah.
+- [ ] User Ajukan Rilis → status Menunggu; Edit/Hapus hilang.
+- [ ] Admin Tolak → kembali Draft (alasan tampil); user bisa edit lalu ajukan ulang.
+- [ ] Admin Setujui & Rilis dengan nomor surat → status Rilis.
+- [ ] Search, filter status, dan sort di daftar dokumen bekerja.
+- [ ] **Uji keamanan:** login sebagai user, buka Console, coba
+      `updateDoc` status dokumen jadi `released` → harus ditolak
+      (permission-denied).
+- [ ] Nonaktifkan user → user itu tidak bisa login / membaca data lagi.
