@@ -10,7 +10,7 @@
 import { requireAuth, requireRole, logout } from "./auth.js";
 import { showToast, setButtonLoading } from "./ui.js";
 import { db } from "./firebase-config.js";
-import { renderTemplate } from "./template-engine.js";
+import { renderTemplate, buildDocumentNumber, DEFAULT_NUMBER_FORMAT } from "./template-engine.js";
 import {
   doc,
   getDoc,
@@ -29,6 +29,9 @@ const formError = document.getElementById("editorFormError");
 const tplName = document.getElementById("tplName");
 const tplCategory = document.getElementById("tplCategory");
 const tplDescription = document.getElementById("tplDescription");
+const tplNumberCode = document.getElementById("tplNumberCode");
+const tplNumberFormat = document.getElementById("tplNumberFormat");
+const numberExample = document.getElementById("numberExample");
 const tplHtml = document.getElementById("tplHtml");
 const tplCanvas = document.getElementById("tplCanvas");
 
@@ -91,6 +94,9 @@ async function loadExistingTemplate(id) {
     tplName.value = data.name || "";
     tplCategory.value = data.category || "";
     tplDescription.value = data.description || "";
+    tplNumberCode.value = data.numberCode || "";
+    tplNumberFormat.value = data.numberFormat || "";
+    updateNumberExample();
     tplHtml.value = data.html || "";
     fields = (data.fields || []).map((f) => ({ ...f, uid: "f" + (fieldUidCounter++) }));
     renderFields();
@@ -286,6 +292,8 @@ saveBtn.addEventListener("click", async () => {
   const name = tplName.value.trim();
   const category = tplCategory.value.trim();
   const description = tplDescription.value.trim();
+  const numberCode = tplNumberCode.value.trim().toUpperCase();
+  const numberFormat = tplNumberFormat.value.trim();
   const html = tplHtml.value;
 
   if (!name) {
@@ -294,6 +302,18 @@ saveBtn.addEventListener("click", async () => {
   }
   if (fields.some((f) => !f.name)) {
     showFormError("Semua field harus punya \"Nama Field\" (kode), tidak boleh kosong.");
+    return;
+  }
+  if (!/^[A-Z0-9._-]{1,12}$/.test(numberCode)) {
+    showFormError("Kode Jenis Surat wajib diisi (1-12 karakter: huruf, angka, titik, strip). Contoh: ST.");
+    return;
+  }
+  if (numberFormat && !numberFormat.includes("{no}")) {
+    showFormError("Format Nomor Surat harus memuat {no} (nomor urut), atau kosongkan untuk memakai format bawaan.");
+    return;
+  }
+  if (fields.some((f) => f.name === "nomor_surat")) {
+    showFormError("Nama field \"nomor_surat\" dipakai sistem untuk nomor otomatis. Hapus field itu — cukup taruh {{nomor_surat}} di isi surat.");
     return;
   }
   const fieldNames = fields.map((f) => f.name);
@@ -308,6 +328,8 @@ saveBtn.addEventListener("click", async () => {
     name,
     category,
     description,
+    numberCode,
+    numberFormat: numberFormat || DEFAULT_NUMBER_FORMAT,
     html,
     fields: fields.map((f) => ({
       name: f.name,
@@ -353,3 +375,15 @@ function escapeAttr(str) {
   div.textContent = str || "";
   return div.innerHTML.replace(/"/g, "&quot;");
 }
+
+
+// ---------- Contoh nomor surat (langsung berubah saat diketik) ----------
+
+function updateNumberExample() {
+  const code = tplNumberCode.value.trim().toUpperCase() || "DOK";
+  const format = tplNumberFormat.value.trim();
+  numberExample.textContent = buildDocumentNumber(format.includes("{no}") ? format : "", code, 1);
+}
+tplNumberCode.addEventListener("input", updateNumberExample);
+tplNumberFormat.addEventListener("input", updateNumberExample);
+updateNumberExample();

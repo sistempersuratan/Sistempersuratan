@@ -7,13 +7,21 @@
 import { requireAuth, logout } from "./auth.js";
 import { showToast } from "./ui.js";
 import { db } from "./firebase-config.js";
-import { sanitizeHtml } from "./template-engine.js";
+import {
+  sanitizeHtml,
+  buildDocumentNumber,
+  fillNumberPlaceholder,
+  markNumberPlaceholder,
+  DEFAULT_NUMBER_FORMAT
+} from "./template-engine.js";
 import {
   collection,
   query,
   where,
   getDocs,
   doc,
+  getDoc,
+  runTransaction,
   updateDoc,
   deleteDoc,
   serverTimestamp
@@ -101,7 +109,7 @@ async function loadDocuments() {
     }
     documentsCache = snap.docs.map((d) => {
       const data = d.data();
-      return { id: d.id, ...data, renderedHtml: sanitizeHtml(data.renderedHtml) };
+      return { id: d.id, ...data, renderedHtml: sanitizeHtml(prepareHtmlForDisplay(data)) };
     });
     documentsCache.sort((a, b) => tsToMillis(b.createdAt) - tsToMillis(a.createdAt));
     renderTable();
@@ -109,6 +117,15 @@ async function loadDocuments() {
     console.error("Gagal memuat dokumen:", error);
     tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
   }
+}
+
+// Dokumen rilis: isi {{nomor_surat}} dengan nomor resmi (juga untuk dokumen lama).
+// Belum rilis: tampilkan petunjuk bahwa nomor diberikan saat rilis.
+function prepareHtmlForDisplay(data) {
+  const html = data.renderedHtml || "";
+  return data.status === "released" && data.documentNumber
+    ? fillNumberPlaceholder(html, data.documentNumber)
+    : markNumberPlaceholder(html);
 }
 
 function statusInfo(status) {
@@ -308,27 +325,72 @@ submitBtn.addEventListener("click", async () => {
 
 releaseBtn.addEventListener("click", async () => {
   if (!activeDocument) return;
-  const nomor = prompt("Masukkan nomor surat:", activeDocument.documentNumber || "");
-  if (nomor === null) return;
-  if (!nomor.trim()) {
-    showToast("Nomor surat wajib diisi.", "error");
-    return;
-  }
+  if (!confirm("Setujui dan rilis dokumen ini? Nomor surat akan diberikan otomatis sesuai jenis surat.")) return;
+
+  const target = activeDocument;
+  releaseBtn.disabled = true;
   try {
-    await updateDoc(doc(db, "documents", activeDocument.id), {
-      status: "released",
-      documentNumber: nomor.trim(),
-      rejectionReason: null,
-      releasedAt: serverTimestamp(),
-      releasedBy: currentProfile.username || currentUser.email,
-      updatedAt: serverTimestamp()
+    // Kode & format nomor ada di template (fallback bila template sudah dihapus / belum diatur)
+    let code = "DOK";
+    let format = DEFAULT_NUMBER_FORMAT;
+    try {
+      const tplSnap = await getDoc(doc(db, "templates", target.templateId));
+      if (tplSnap.exists()) {
+        code = tplSnap.data().numberCode || code;
+        format = tplSnap.data().numberFormat || format;
+      }
+    } catch (e) {
+      console.warn("Template tidak terbaca, pakai kode bawaan:", e);
+    }
+
+    const now = new Date();
+    const docRef = doc(db, "documents", target.id);
+    // Urutan dihitung per jenis surat per tahun. Transaksi memastikan dua admin
+    // yang merilis bersamaan tidak mendapat nomor kembar, dan dokumen yang sama
+    // tidak bisa dirilis dua kali.
+    const counterRef = doc(db, "counters", `${target.templateId}_${now.getFullYear()}`);
+
+    const nomor = await runTransaction(db, async (tx) => {
+      const docSnap = await tx.get(docRef);
+      const counterSnap = await tx.get(counterRef);
+      if (!docSnap.exists()) throw new Error("doc-not-found");
+      const current = docSnap.data();
+      if (current.status === "released") throw new Error("already-released");
+
+      const next = (counterSnap.exists() ? counterSnap.data().last || 0 : 0) + 1;
+      const number = buildDocumentNumber(format, code, next, now);
+
+      tx.set(counterRef, {
+        templateId: target.templateId,
+        year: now.getFullYear(),
+        last: next,
+        updatedAt: serverTimestamp()
+      });
+      tx.update(docRef, {
+        status: "released",
+        documentNumber: number,
+        renderedHtml: fillNumberPlaceholder(current.renderedHtml || "", number),
+        rejectionReason: null,
+        releasedAt: serverTimestamp(),
+        releasedBy: currentProfile.username || currentUser.email,
+        updatedAt: serverTimestamp()
+      });
+      return number;
     });
-    showToast("Dokumen disetujui dan berhasil dirilis.", "success");
+
+    showToast(`Dokumen dirilis dengan nomor ${nomor}.`, "success");
     detailPanel.style.display = "none";
     loadDocuments();
   } catch (error) {
     console.error("Gagal merilis dokumen:", error);
-    showToast("Gagal merilis dokumen. Coba lagi.", "error");
+    if (error && error.message === "already-released") {
+      showToast("Dokumen ini sudah dirilis.", "error");
+      loadDocuments();
+    } else {
+      showToast("Gagal merilis dokumen. Coba lagi.", "error");
+    }
+  } finally {
+    releaseBtn.disabled = false;
   }
 });
 

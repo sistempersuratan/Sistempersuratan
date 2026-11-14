@@ -4,7 +4,7 @@
 // ===========================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeAuth, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -19,5 +19,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export { firebaseConfig };
-export const auth = getAuth(app);
+// Login disimpan PER TAB (sessionStorage), bukan per browser. Dengan begitu dua tab
+// bisa login sebagai akun berbeda tanpa saling menimpa, dan menutup tab = logout
+// (lebih aman di komputer bersama). Untuk "ingat login" lintas tab, ganti
+// browserSessionPersistence menjadi browserLocalPersistence.
+export const auth = initializeAuth(app, { persistence: browserSessionPersistence });
 export const db = getFirestore(app);

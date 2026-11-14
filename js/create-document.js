@@ -5,7 +5,11 @@
 
 import { requireAuth, logout } from "./auth.js";
 import { showToast, setButtonLoading } from "./ui.js";
-import { renderTemplate } from "./template-engine.js";
+import { renderTemplate, markNumberPlaceholder } from "./template-engine.js";
+
+// {{nomor_surat}} diisi sistem saat rilis, jadi field bernama itu tidak ditampilkan di form
+// (menjaga template lama yang masih punya field tersebut tetap aman).
+const withoutSystemFields = (t) => ({ ...t, fields: (t.fields || []).filter((f) => f.name !== "nomor_surat") });
 import { db } from "./firebase-config.js";
 import {
   collection,
@@ -83,7 +87,7 @@ async function loadTemplates() {
   try {
     const snap = await getDocs(collection(db, "templates"));
     templatesCache = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
+      .map((d) => withoutSystemFields({ id: d.id, ...d.data() }))
       .filter((t) => t.active !== false);
     templatesCache.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     renderTemplateOptions();
@@ -117,7 +121,7 @@ async function startEditMode() {
         showToast("Template dokumen ini sudah dihapus, dokumen tidak bisa diedit.", "error");
         return;
       }
-      tpl = { id: tSnap.id, ...tSnap.data() };
+      tpl = withoutSystemFields({ id: tSnap.id, ...tSnap.data() });
       templatesCache.push(tpl);
       renderTemplateOptions();
     }
@@ -221,7 +225,7 @@ previewBtn.addEventListener("click", () => {
   if (!validateForm(data)) return;
 
   const html = renderTemplate(selectedTemplate.html, data);
-  previewArea.innerHTML = html;
+  previewArea.innerHTML = markNumberPlaceholder(html);
   previewPanel.style.display = "block";
   previewPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -264,7 +268,7 @@ saveBtn.addEventListener("click", async () => {
     });
 
     showToast("Dokumen berhasil disimpan.", "success");
-    previewArea.innerHTML = renderedHtml;
+    previewArea.innerHTML = markNumberPlaceholder(renderedHtml);
     previewPanel.style.display = "block";
   } catch (error) {
     console.error("Gagal menyimpan dokumen:", error);

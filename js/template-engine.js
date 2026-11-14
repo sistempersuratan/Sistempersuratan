@@ -72,3 +72,44 @@ export function sanitizeHtml(html) {
   const styles = [...parsed.head.querySelectorAll("style")].map((el) => el.outerHTML).join("");
   return styles + parsed.body.innerHTML;
 }
+
+// ===========================================================
+// Penomoran surat otomatis (per jenis surat)
+// Dipakai: documents.js (saat admin merilis) & template-editor.js (contoh format)
+// ===========================================================
+
+export const DEFAULT_NUMBER_FORMAT = "{no}/{kode}/{bln}/{tahun}";
+const ROMAN_MONTHS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+
+/**
+ * Susun nomor surat dari format template.
+ * Kode yang dikenali: {no} urutan 3 digit, {kode} kode jenis surat,
+ * {bln} bulan romawi, {bulan} bulan 2 digit, {tahun} tahun 4 digit.
+ * Format tanpa {no} dianggap tidak valid dan diganti format bawaan.
+ */
+export function buildDocumentNumber(format, code, seq, date = new Date()) {
+  const fmt = format && format.includes("{no}") ? format : DEFAULT_NUMBER_FORMAT;
+  const month = date.getMonth();
+  return fmt
+    .replaceAll("{no}", String(seq).padStart(3, "0"))
+    .replaceAll("{kode}", code || "DOK")
+    .replaceAll("{bln}", ROMAN_MONTHS[month])
+    .replaceAll("{bulan}", String(month + 1).padStart(2, "0"))
+    .replaceAll("{tahun}", String(date.getFullYear()));
+}
+
+// {{nomor_surat}} = placeholder khusus yang DIISI SISTEM saat dokumen dirilis.
+const NUMBER_PLACEHOLDER = /\{\{\s*nomor_surat\s*\}\}/g;
+
+/** Isi {{nomor_surat}} dengan nomor resmi (dipakai saat rilis). */
+export function fillNumberPlaceholder(html, number) {
+  return (html || "").replace(NUMBER_PLACEHOLDER, () => escapeHtml(String(number)));
+}
+
+/** Tampilkan petunjuk sementara untuk {{nomor_surat}} pada dokumen yang belum dirilis. */
+export function markNumberPlaceholder(html) {
+  return (html || "").replace(
+    NUMBER_PLACEHOLDER,
+    '<span style="background:#fff3cd; padding:0 4px;">[nomor diberikan saat rilis]</span>'
+  );
+}
