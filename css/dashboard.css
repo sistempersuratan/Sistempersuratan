@@ -198,3 +198,14 @@
     color:var(--ink-900);
   }
 }
+
+/* Bottom nav: muat hingga 6 item di layar HP kecil */
+@media (max-width:860px){
+  .bottom-nav .nav-link{
+    min-width:0;
+    padding:6px 1px;
+    font-size:10.5px;
+    justify-content:center;
+    text-align:center;
+  }
+}
