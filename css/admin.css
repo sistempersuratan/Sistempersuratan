@@ -130,3 +130,7 @@
 .filter-bar .input{
   margin:0;
 }
+
+@media (max-width:560px){
+  .filter-bar .input{ width:100% !important; }
+}
