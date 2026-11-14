@@ -7,11 +7,12 @@
 
 import { requireAuth, requireRole, logout, getEmailByUsername } from "./auth.js";
 import { showToast, setButtonLoading, mapAuthError } from "./ui.js";
-import { db, firebaseConfig } from "./firebase-config.js";
+import { auth, db, firebaseConfig } from "./firebase-config.js";
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut as signOutSecondary
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
@@ -92,6 +93,7 @@ function renderUsers() {
       <td>
         <div class="row-actions">
           <button class="link-btn" data-action="edit" data-id="${u.id}">Edit</button>
+          <button class="link-btn" data-action="reset" data-id="${u.id}">Reset Password</button>
           <button class="link-btn ${u.active === false ? "" : "danger"}" data-action="toggle" data-id="${u.id}">
             ${u.active === false ? "Aktifkan" : "Nonaktifkan"}
           </button>
@@ -117,8 +119,27 @@ tableBody.addEventListener("click", (e) => {
     openEditModal(userData);
   } else if (btn.dataset.action === "toggle") {
     toggleActive(userData);
+  } else if (btn.dataset.action === "reset") {
+    resetPassword(userData);
   }
 });
+
+// ---------- Reset password (kirim email tautan reset) ----------
+
+async function resetPassword(userData) {
+  if (!userData.email) {
+    showToast("User ini tidak punya email.", "error");
+    return;
+  }
+  if (!confirm(`Kirim email reset password ke ${userData.email}?`)) return;
+  try {
+    await sendPasswordResetEmail(auth, userData.email);
+    showToast(`Email reset password dikirim ke ${userData.email}.`, "success");
+  } catch (error) {
+    console.error("Gagal kirim email reset password:", error);
+    showToast("Gagal mengirim email reset. Pastikan email user valid.", "error");
+  }
+}
 
 // ---------- Toggle aktif/nonaktif ----------
 

@@ -7,6 +7,7 @@
 import { requireAuth, logout } from "./auth.js";
 import { showToast } from "./ui.js";
 import { db } from "./firebase-config.js";
+import { sanitizeHtml } from "./template-engine.js";
 import {
   collection,
   query,
@@ -98,7 +99,10 @@ async function loadDocuments() {
       const q = query(collection(db, "documents"), where("userId", "==", currentUser.uid));
       snap = await getDocs(q);
     }
-    documentsCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    documentsCache = snap.docs.map((d) => {
+      const data = d.data();
+      return { id: d.id, ...data, renderedHtml: sanitizeHtml(data.renderedHtml) };
+    });
     documentsCache.sort((a, b) => tsToMillis(b.createdAt) - tsToMillis(a.createdAt));
     renderTable();
   } catch (error) {
