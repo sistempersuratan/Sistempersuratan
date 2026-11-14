@@ -50,6 +50,20 @@
         </div>
       </div>
 
+      <div class="filter-bar">
+        <input type="search" id="searchInput" class="input" placeholder="Cari nomor surat, template, atau pembuat..." style="flex:1; min-width:200px;">
+        <select id="statusFilter" class="input" style="width:auto;">
+          <option value="">Semua status</option>
+          <option value="draft">Draft</option>
+          <option value="pending">Menunggu Persetujuan</option>
+          <option value="released">Rilis</option>
+        </select>
+        <select id="sortSelect" class="input" style="width:auto;">
+          <option value="newest">Terbaru dulu</option>
+          <option value="oldest">Terlama dulu</option>
+        </select>
+      </div>
+
       <div class="panel" style="padding:0; overflow-x:auto;">
         <table class="data-table" id="documentsTable">
           <thead>
@@ -80,6 +94,8 @@
             <button class="btn" id="downloadWordBtn">Download Word</button>
             <button class="btn" id="shareWaBtn">Kirim WA</button>
             <button class="btn" id="shareEmailBtn">Kirim Email</button>
+            <button class="btn" id="editBtn" style="display:none;">Edit</button>
+            <button class="btn" id="deleteBtn" style="display:none; color:var(--accent);">Hapus</button>
             <button class="btn btn-primary" id="submitBtn" style="display:none;">Ajukan Rilis</button>
             <button class="btn btn-primary admin-only" id="releaseBtn" style="display:none;">Setujui &amp; Rilis</button>
             <button class="btn admin-only" id="rejectBtn" style="display:none;">Tolak</button>
