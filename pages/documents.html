@@ -1,120 +1,108 @@
-import { db, auth } from '../js/firebase-config.js';
-import { collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dokumen — Sistem Persuratan</title>
+<link rel="icon" href="../assets/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/dashboard.css">
+<link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
 
-// 1. Cek Sesi Login & Ambil Profil User dari Firestore
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    try {
-      if (!db) {
-        console.error("Database belum terinisialisasi dengan benar.");
-        return;
-      }
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="seal">SP</div>
+        <div class="name">Persuratan</div>
+      </div>
 
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
+      <nav class="nav-group">
+        <a class="nav-link nav-dashboard-link" href="../dashboard.html">Dashboard</a>
+        <a class="nav-link" href="create-document.html">Buat Dokumen</a>
+        <a class="nav-link active" href="documents.html">Dokumen Saya</a>
+        <a class="nav-link admin-only" href="users.html" style="display:none;">Kelola User</a>
+        <a class="nav-link admin-only" href="templates.html" style="display:none;">Kelola Template</a>
+      </nav>
 
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        
-        // Tampilkan nama dan role di sidebar
-        const userNameEl = document.getElementById("userName");
-        if (userNameEl) userNameEl.textContent = userData.username || user.email;
-        
-        const roleBadge = document.getElementById("userRoleBadge");
-        if (roleBadge) {
-          if (userData.role === "admin") {
-            roleBadge.textContent = "Admin";
-            // Tampilkan elemen khusus admin
-            document.querySelectorAll(".admin-only").forEach(el => {
-              el.style.display = "inline-block";
-            });
-          } else {
-            roleBadge.textContent = "User";
-          }
-        }
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="avatar" id="userInitial">?</div>
+          <div class="who">
+            <div class="n" id="userName">Memuat...</div>
+            <div class="r"><span class="badge" id="userRoleBadge">User</span></div>
+          </div>
+        </div>
+        <button class="nav-link js-logout" id="logoutBtn">Keluar</button>
+      </div>
+    </aside>
 
-        // Inisial avatar
-        const userInitialEl = document.getElementById("userInitial");
-        if (userInitialEl) {
-          userInitialEl.textContent = (userData.username || user.email).charAt(0).toUpperCase();
-        }
-        
-        // Muat data tabel dokumen
-        loadDocumentsTable(user.uid, userData.role);
-      } else {
-        console.error("Dokumen profil user tidak ditemukan di koleksi users!");
-      }
-    } catch (error) {
-      console.error("Gagal memuat profil user:", error);
-    }
-  } else {
-    // Jika belum login, arahkan kembali ke halaman utama
-    window.location.href = "../index.html";
-  }
-});
+    <main class="main">
+      <div class="main-header">
+        <div>
+          <h1 id="pageTitle">Dokumen Saya</h1>
+          <div class="subtitle" id="pageSubtitle">Daftar dokumen yang sudah kamu buat.</div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn admin-only" id="exportExcelBtn" style="display:none; width:auto;">Export Rekap Excel</button>
+          <button class="btn-header-logout js-logout" type="button">Keluar</button>
+        </div>
+      </div>
 
-// 2. Fungsi Tombol Logout
-document.querySelectorAll(".js-logout").forEach(btn => {
-  btn.addEventListener("click", () => {
-    signOut(auth).then(() => {
-      window.location.href = "../index.html";
-    }).catch((error) => {
-      console.error("Gagal keluar:", error);
-    });
-  });
-});
+      <div class="panel" style="padding:0; overflow-x:auto;">
+        <table class="data-table" id="documentsTable">
+          <thead>
+            <tr>
+              <th>Nomor Surat</th>
+              <th>Template</th>
+              <th>Tanggal Dibuat</th>
+              <th class="admin-only" style="display:none;">Dibuat Oleh</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="documentsTableBody">
+            <tr><td colspan="6" class="table-empty">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
 
-// 3. Fungsi Render Tabel Dokumen (Disesuaikan dengan HTML kamu)
-async function loadDocumentsTable(uid, role) {
-  const tbody = document.getElementById("documentsTableBody");
-  if (!tbody) return;
+      <div class="panel" id="detailPanel" style="display:none; margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h3 id="detailTitle">Detail Dokumen</h3>
+            <div class="subtitle" id="detailMeta"></div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" id="printBtn">Cetak</button>
+            <button class="btn" id="downloadPdfBtn">Download PDF</button>
+            <button class="btn" id="downloadWordBtn">Download Word</button>
+            <button class="btn" id="shareWaBtn">Kirim WA</button>
+            <button class="btn" id="shareEmailBtn">Kirim Email</button>
+            <button class="btn btn-primary" id="submitBtn" style="display:none;">Ajukan Rilis</button>
+            <button class="btn btn-primary admin-only" id="releaseBtn" style="display:none;">Setujui &amp; Rilis</button>
+            <button class="btn admin-only" id="rejectBtn" style="display:none;">Tolak</button>
+          </div>
+        </div>
+        <div id="detailPreview" style="border:1px solid #e2e2e2; padding:24px; background:#fff; margin-top:16px; min-height:200px;"></div>
+      </div>
+    </main>
+  </div>
 
-  try {
-    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Memuat data...</td></tr>`;
-    
-    const querySnapshot = await getDocs(collection(db, "documents"));
-    
-    tbody.innerHTML = "";
-    if (querySnapshot.empty) {
-      tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Belum ada dokumen.</td></tr>`;
-      return;
-    }
+  <nav class="bottom-nav">
+    <a class="nav-link nav-dashboard-link" href="../dashboard.html">Dashboard</a>
+    <a class="nav-link" href="create-document.html">Buat</a>
+    <a class="nav-link active" href="documents.html">Dokumen</a>
+    <a class="nav-link admin-only" href="templates.html" style="display:none;">Template</a>
+    <button class="nav-link js-logout" type="button">Keluar</button>
+  </nav>
 
-    querySnapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      
-      // Jika bukan admin, hanya tampilkan dokumen miliknya sendiri (jika field userId ada)
-      if (role !== "admin" && data.userId && data.userId !== uid) return;
+  <div class="toast-stack" id="toastStack"></div>
 
-      const tr = document.createElement("tr");
-      
-      // Susunan kolom harus klop dengan thead di HTML:
-      // 1. Nomor Surat, 2. Template, 3. Tanggal, 4. Dibuat Oleh (Admin-only), 5. Status, 6. Aksi
-      tr.innerHTML = `
-        <td>${data.nomor_surat || '-'}</td>
-        <td>${data.template_name || 'Invoice'}</td>
-        <td>${data.tanggal_dibuat || '-'}</td>
-        <td class="admin-only" style="display: ${role === 'admin' ? 'table-cell' : 'none'};">${data.creator_name || data.userEmail || '-'}</td>
-        <td><span class="badge">${data.status || 'Draft'}</span></td>
-        <td><button class="btn btn-sm view-doc-btn" data-id="${docSnap.id}">Lihat</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    // Event listener untuk tombol "Lihat" detail dokumen
-    document.querySelectorAll(".view-doc-btn").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        const docId = e.target.getAttribute("data-id");
-        alert("Melihat detail dokumen ID: " + docId);
-        // Buka panel detail atau muat data detail di sini jika diperlukan
-        const detailPanel = document.getElementById("detailPanel");
-        if (detailPanel) detailPanel.style.display = "block";
-      });
-    });
-
-  } catch (error) {
-    console.error("Gagal mengambil data dokumen:", error);
-    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Gagal memuat data dari database.</td></tr>`;
-  }
-}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script type="module" src="../js/firebase-config.js"></script>
+  <script type="module" src="../js/documents.js"></script>
+</body>
+</html>
