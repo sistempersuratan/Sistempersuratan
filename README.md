@@ -10,8 +10,8 @@ HTML + CSS + JavaScript vanilla (ES Modules) dengan Firebase
 
 | Peran | Bisa melakukan |
 |---|---|
-| **Admin** | Kelola user, kelola template (buat/edit/nonaktifkan/hapus), lihat semua dokumen, setujui/tolak dokumen, export rekap Excel |
-| **User** | Pilih template, isi form, simpan draft, edit/hapus draft, ajukan rilis, lihat dokumen sendiri, cetak / PDF / Word / kirim WA & Email |
+| **Admin** | Kelola user (tambah, edit, nonaktifkan, **kirim email reset password**), kelola template (buat/edit/nonaktifkan/hapus), lihat semua dokumen, setujui/tolak dokumen, export rekap Excel |
+| **User** | Pilih template, isi form, simpan draft, edit/hapus draft, ajukan rilis, lihat dokumen sendiri, cetak / PDF / Word / kirim WA & Email, **ubah password sendiri di halaman Profil** |
 
 ### Alur dokumen
 
@@ -41,11 +41,27 @@ js/
   template-engine.js  renderTemplate() untuk ganti {{placeholder}}
   login.js, dashboard.js, admin.js
   users.js, templates.js, template-editor.js
-  create-document.js, documents.js
+  create-document.js, documents.js, profile.js
 pages/
   users.html, templates.html, template-editor.html
-  create-document.html, documents.html
+  create-document.html, documents.html, profile.html
 ```
+
+## Keamanan
+
+- **Security Rules** (`firestore.rules`) menjaga alur approval di sisi server: user
+  tidak bisa merilis dokumen sendiri, mengisi nomor surat, atau mengubah dokumen
+  setelah diajukan. Akun nonaktif ditolak Firestore.
+- **Anti-XSS tersimpan:** isi `renderedHtml` pada dokumen tidak diperiksa Rules,
+  jadi setiap kali ditampilkan dilewatkan `sanitizeHtml()` (`js/template-engine.js`)
+  yang membuang `<script>`, `<iframe>`, atribut `on*`, dan tautan `javascript:`.
+  Pakai fungsi ini untuk **setiap** HTML dari database yang masuk `innerHTML`.
+- **Reset password:** admin menekan *Reset Password* di Kelola User; Firebase
+  mengirim email tautan reset ke alamat user (jadi email user harus asli).
+  Admin tidak pernah melihat atau menentukan password user.
+- Batasan yang diketahui: keunikan username hanya dicek di sisi klien, dan
+  lookup username saat login membuka satu dokumen user (email & role) bagi
+  yang menebak username.
 
 ## Login dengan username
 
@@ -121,3 +137,12 @@ relatif (helper `pagePrefix()` di `auth.js`), jadi aman di subfolder
       `updateDoc` status dokumen jadi `released` → harus ditolak
       (permission-denied).
 - [ ] Nonaktifkan user → user itu tidak bisa login / membaca data lagi.
+- [ ] **Profil:** menu Profil ada di sidebar & menu bawah; username/email/peran tampil.
+- [ ] **Ubah password:** password lama salah → ditolak; benar → berhasil, login ulang
+      dengan password baru jalan.
+- [ ] **Reset password (admin):** Kelola User → Reset Password → email masuk ke user.
+- [ ] **Mobile (lebar ~360px):** admin punya menu bawah di semua halaman; filter
+      dokumen tidak terpotong.
+- [ ] **Uji XSS:** sebagai user, ubah `renderedHtml` dokumen lewat Console menjadi
+      `<img src=x onerror=alert(1)>`; saat admin membuka dokumen itu tidak boleh
+      ada popup.
