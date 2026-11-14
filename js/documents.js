@@ -57,12 +57,10 @@ requireAuth((user, profile) => {
   currentUser = user;
   currentProfile = profile;
 
-  if (userName) userName.textContent = profile.username || user.email;
-  if (userInitial) userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
-  if (userRoleBadge) {
-    userRoleBadge.textContent = profile.role === "admin" ? "Admin" : "User";
-    userRoleBadge.className = `badge ${profile.role === "admin" ? "admin" : "user"}`;
-  }
+  userName.textContent = profile.username || user.email;
+  userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
+  userRoleBadge.textContent = profile.role === "admin" ? "Admin" : "User";
+  userRoleBadge.className = `badge ${profile.role === "admin" ? "admin" : "user"}`;
 
   navDashboardLinks.forEach((el) => {
     el.addEventListener("click", (e) => {
@@ -73,8 +71,8 @@ requireAuth((user, profile) => {
 
   if (profile.role === "admin") {
     adminOnlyEls.forEach((el) => (el.style.display = ""));
-    if (pageTitle) pageTitle.textContent = "Semua Dokumen";
-    if (pageSubtitle) pageSubtitle.textContent = "Seluruh dokumen yang dibuat oleh semua user.";
+    pageTitle.textContent = "Semua Dokumen";
+    pageSubtitle.textContent = "Seluruh dokumen yang dibuat oleh semua user.";
   }
 
   loadDocuments();
@@ -92,7 +90,6 @@ logoutButtons.forEach((btn) => {
 });
 
 async function loadDocuments() {
-  if (!tableBody) return;
   try {
     let snap;
     if (currentProfile.role === "admin") {
@@ -119,8 +116,8 @@ function statusInfo(status) {
 }
 
 function getVisibleDocuments() {
-  const keyword = searchInput ? searchInput.value.trim().toLowerCase() : "";
-  const status = statusFilter ? statusFilter.value : "";
+  const keyword = searchInput.value.trim().toLowerCase();
+  const status = statusFilter.value;
   let list = documentsCache.filter((d) => {
     if (status && (d.status || "draft") !== status) return false;
     if (!keyword) return true;
@@ -128,23 +125,17 @@ function getVisibleDocuments() {
       .filter(Boolean).join(" ").toLowerCase();
     return haystack.includes(keyword);
   });
-  
-  const sortValue = sortSelect ? sortSelect.value : "newest";
-  list.sort((a, b) => sortValue === "oldest"
+  list.sort((a, b) => sortSelect.value === "oldest"
     ? tsToMillis(a.createdAt) - tsToMillis(b.createdAt)
     : tsToMillis(b.createdAt) - tsToMillis(a.createdAt));
   return list;
 }
 
 [searchInput, statusFilter, sortSelect].forEach((el) => {
-  if (el) {
-    el.addEventListener("input", () => renderTable());
-  }
+  el.addEventListener("input", () => renderTable());
 });
 
 function renderTable() {
-  if (!tableBody) return;
-
   if (documentsCache.length === 0) {
     tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Belum ada dokumen. Buat dari menu "Buat Dokumen".</td></tr>`;
     return;
@@ -171,87 +162,76 @@ function renderTable() {
   }).join("");
 }
 
-if (tableBody) {
-  tableBody.addEventListener("click", (e) => {
-    const btn = e.target.closest("button[data-id]");
-    if (!btn) return;
-    const item = documentsCache.find((d) => d.id === btn.dataset.id);
-    if (item) openDetail(item);
-  });
-}
+tableBody.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-id]");
+  if (!btn) return;
+  const item = documentsCache.find((d) => d.id === btn.dataset.id);
+  if (item) openDetail(item);
+});
 
 function openDetail(item) {
   activeDocument = item;
   const s = statusInfo(item.status);
-  if (detailTitle) detailTitle.textContent = item.templateName || "Dokumen";
-  if (detailMeta) {
-    detailMeta.textContent = `${item.documentNumber ? "No. " + item.documentNumber + " — " : ""}Dibuat ${formatDate(item.createdAt)} oleh ${item.createdByUsername || "-"} — Status: ${s.label}` +
-      (item.rejectionReason ? ` — Alasan ditolak sebelumnya: ${item.rejectionReason}` : "");
-  }
-  if (detailPreview) detailPreview.innerHTML = item.renderedHtml || "<p>Tidak ada isi.</p>";
+  detailTitle.textContent = item.templateName || "Dokumen";
+  detailMeta.textContent = `${item.documentNumber ? "No. " + item.documentNumber + " — " : ""}Dibuat ${formatDate(item.createdAt)} oleh ${item.createdByUsername || "-"} — Status: ${s.label}` +
+    (item.rejectionReason ? ` — Alasan ditolak sebelumnya: ${item.rejectionReason}` : "");
+  detailPreview.innerHTML = item.renderedHtml || "<p>Tidak ada isi.</p>";
 
   const isAdmin = currentProfile.role === "admin";
   const isOwner = item.userId === currentUser.uid;
+
   const isDraft = (item.status || "draft") === "draft";
+  submitBtn.style.display = !isAdmin && isOwner && isDraft ? "" : "none";
+  editBtn.style.display = isOwner && isDraft ? "" : "none";
+  deleteBtn.style.display = isOwner && isDraft ? "" : "none";
+  // Admin merilis dokumen yang diajukan user, atau draft miliknya sendiri
+  releaseBtn.style.display = isAdmin && (item.status === "pending" || (isOwner && isDraft)) ? "" : "none";
+  rejectBtn.style.display = isAdmin && item.status === "pending" ? "" : "none";
 
-  if (submitBtn) submitBtn.style.display = !isAdmin && isOwner && isDraft ? "" : "none";
-  if (editBtn) editBtn.style.display = isOwner && isDraft ? "" : "none";
-  if (deleteBtn) deleteBtn.style.display = isOwner && isDraft ? "" : "none";
-  if (releaseBtn) releaseBtn.style.display = isAdmin && (item.status === "pending" || (isOwner && isDraft)) ? "" : "none";
-  if (rejectBtn) rejectBtn.style.display = isAdmin && item.status === "pending" ? "" : "none";
-
-  if (detailPanel) {
-    detailPanel.style.display = "block";
-    detailPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  detailPanel.style.display = "block";
+  detailPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-if (printBtn) {
-  printBtn.addEventListener("click", () => {
-    if (!activeDocument) return;
-    const win = window.open("", "_blank");
-    win.document.write(`<html><head><title>${escapeHtml(activeDocument.templateName || "Cetak")}</title></head><body>${activeDocument.renderedHtml}</body></html>`);
-    win.document.close();
-    win.focus();
-    win.print();
-  });
-}
+printBtn.addEventListener("click", () => {
+  if (!activeDocument) return;
+  const win = window.open("", "_blank");
+  win.document.write(`<html><head><title>${escapeHtml(activeDocument.templateName || "Cetak")}</title></head><body>${activeDocument.renderedHtml}</body></html>`);
+  win.document.close();
+  win.focus();
+  win.print();
+});
 
-if (downloadPdfBtn) {
-  downloadPdfBtn.addEventListener("click", () => {
-    if (!activeDocument) return;
-    const filename = fileBaseName(activeDocument);
-    html2pdf().set({
-      margin: 10,
-      filename: `${filename}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    }).from(detailPreview).save();
-  });
-}
+downloadPdfBtn.addEventListener("click", () => {
+  if (!activeDocument) return;
+  const filename = fileBaseName(activeDocument);
+  html2pdf().set({
+    margin: 10,
+    filename: `${filename}.pdf`,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+  }).from(detailPreview).save();
+});
 
-if (downloadWordBtn) {
-  downloadWordBtn.addEventListener("click", () => {
-    if (!activeDocument) return;
-    const filename = fileBaseName(activeDocument);
-    const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
-    const postHtml = "</body></html>";
-    const fullHtml = preHtml + activeDocument.renderedHtml + postHtml;
-    const blob = new Blob(["\ufeff", fullHtml], { type: "application/msword" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename}.doc`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  });
-}
+downloadWordBtn.addEventListener("click", () => {
+  if (!activeDocument) return;
+  const filename = fileBaseName(activeDocument);
+  const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>";
+  const postHtml = "</body></html>";
+  const fullHtml = preHtml + activeDocument.renderedHtml + postHtml;
+  const blob = new Blob(["\ufeff", fullHtml], { type: "application/msword" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
 
-if (shareWaBtn) shareWaBtn.addEventListener("click", () => shareDocument("wa"));
-if (shareEmailBtn) shareEmailBtn.addEventListener("click", () => shareDocument("email"));
+shareWaBtn.addEventListener("click", () => shareDocument("wa"));
+shareEmailBtn.addEventListener("click", () => shareDocument("email"));
 
 async function shareDocument(channel) {
   if (!activeDocument) return;
@@ -276,7 +256,7 @@ async function shareDocument(channel) {
     console.warn("Web Share tidak tersedia, fallback ke link manual:", error);
   }
 
-  if (downloadPdfBtn) downloadPdfBtn.click();
+  downloadPdfBtn.click();
   if (channel === "wa") {
     window.open(`https://wa.me/?text=${encodeURIComponent(text + " (PDF terlampir, silakan lampirkan file yang baru terunduh)")}`, "_blank");
   } else {
@@ -285,118 +265,106 @@ async function shareDocument(channel) {
   showToast("PDF sudah diunduh. Lampirkan manual di aplikasi yang terbuka.", "info");
 }
 
-if (editBtn) {
-  editBtn.addEventListener("click", () => {
-    if (!activeDocument) return;
-    window.location.href = `create-document.html?edit=${activeDocument.id}`;
-  });
-}
+editBtn.addEventListener("click", () => {
+  if (!activeDocument) return;
+  window.location.href = `create-document.html?edit=${activeDocument.id}`;
+});
 
-if (deleteBtn) {
-  deleteBtn.addEventListener("click", async () => {
-    if (!activeDocument) return;
-    if (!confirm("Hapus draft dokumen ini? Tindakan ini tidak bisa dibatalkan.")) return;
-    try {
-      await deleteDoc(doc(db, "documents", activeDocument.id));
-      showToast("Draft dokumen berhasil dihapus.", "success");
-      if (detailPanel) detailPanel.style.display = "none";
-      activeDocument = null;
-      loadDocuments();
-    } catch (error) {
-      console.error("Gagal menghapus dokumen:", error);
-      showToast("Gagal menghapus dokumen. Coba lagi.", "error");
-    }
-  });
-}
+deleteBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  if (!confirm("Hapus draft dokumen ini? Tindakan ini tidak bisa dibatalkan.")) return;
+  try {
+    await deleteDoc(doc(db, "documents", activeDocument.id));
+    showToast("Draft dokumen berhasil dihapus.", "success");
+    detailPanel.style.display = "none";
+    activeDocument = null;
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal menghapus dokumen:", error);
+    showToast("Gagal menghapus dokumen. Coba lagi.", "error");
+  }
+});
 
-if (submitBtn) {
-  submitBtn.addEventListener("click", async () => {
-    if (!activeDocument) return;
-    if (!confirm("Ajukan dokumen ini untuk dirilis? Setelah diajukan, kamu tidak bisa membatalkannya sendiri — tunggu keputusan admin.")) return;
-    try {
-      await updateDoc(doc(db, "documents", activeDocument.id), {
-        status: "pending",
-        updatedAt: serverTimestamp()
-      });
-      showToast("Dokumen berhasil diajukan untuk dirilis.", "success");
-      if (detailPanel) detailPanel.style.display = "none";
-      loadDocuments();
-    } catch (error) {
-      console.error("Gagal mengajukan rilis:", error);
-      showToast("Gagal mengajukan dokumen. Coba lagi.", "error");
-    }
-  });
-}
+submitBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  if (!confirm("Ajukan dokumen ini untuk dirilis? Setelah diajukan, kamu tidak bisa membatalkannya sendiri — tunggu keputusan admin.")) return;
+  try {
+    await updateDoc(doc(db, "documents", activeDocument.id), {
+      status: "pending",
+      updatedAt: serverTimestamp()
+    });
+    showToast("Dokumen berhasil diajukan untuk dirilis.", "success");
+    detailPanel.style.display = "none";
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal mengajukan rilis:", error);
+    showToast("Gagal mengajukan dokumen. Coba lagi.", "error");
+  }
+});
 
-if (releaseBtn) {
-  releaseBtn.addEventListener("click", async () => {
-    if (!activeDocument) return;
-    const nomor = prompt("Masukkan nomor surat:", activeDocument.documentNumber || "");
-    if (nomor === null) return;
-    if (!nomor.trim()) {
-      showToast("Nomor surat wajib diisi.", "error");
-      return;
-    }
-    try {
-      await updateDoc(doc(db, "documents", activeDocument.id), {
-        status: "released",
-        documentNumber: nomor.trim(),
-        rejectionReason: null,
-        releasedAt: serverTimestamp(),
-        releasedBy: currentProfile.username || currentUser.email,
-        updatedAt: serverTimestamp()
-      });
-      showToast("Dokumen disetujui dan berhasil dirilis.", "success");
-      if (detailPanel) detailPanel.style.display = "none";
-      loadDocuments();
-    } catch (error) {
-      console.error("Gagal merilis dokumen:", error);
-      showToast("Gagal merilis dokumen. Coba lagi.", "error");
-    }
-  });
-}
+releaseBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  const nomor = prompt("Masukkan nomor surat:", activeDocument.documentNumber || "");
+  if (nomor === null) return;
+  if (!nomor.trim()) {
+    showToast("Nomor surat wajib diisi.", "error");
+    return;
+  }
+  try {
+    await updateDoc(doc(db, "documents", activeDocument.id), {
+      status: "released",
+      documentNumber: nomor.trim(),
+      rejectionReason: null,
+      releasedAt: serverTimestamp(),
+      releasedBy: currentProfile.username || currentUser.email,
+      updatedAt: serverTimestamp()
+    });
+    showToast("Dokumen disetujui dan berhasil dirilis.", "success");
+    detailPanel.style.display = "none";
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal merilis dokumen:", error);
+    showToast("Gagal merilis dokumen. Coba lagi.", "error");
+  }
+});
 
-if (rejectBtn) {
-  rejectBtn.addEventListener("click", async () => {
-    if (!activeDocument) return;
-    const reason = prompt("Alasan penolakan (boleh dikosongkan):", "");
-    if (reason === null) return;
-    try {
-      await updateDoc(doc(db, "documents", activeDocument.id), {
-        status: "draft",
-        rejectionReason: reason.trim() || null,
-        updatedAt: serverTimestamp()
-      });
-      showToast("Dokumen ditolak dan dikembalikan ke draft.", "success");
-      if (detailPanel) detailPanel.style.display = "none";
-      loadDocuments();
-    } catch (error) {
-      console.error("Gagal menolak dokumen:", error);
-      showToast("Gagal menolak dokumen. Coba lagi.", "error");
-    }
-  });
-}
+rejectBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  const reason = prompt("Alasan penolakan (boleh dikosongkan):", "");
+  if (reason === null) return;
+  try {
+    await updateDoc(doc(db, "documents", activeDocument.id), {
+      status: "draft",
+      rejectionReason: reason.trim() || null,
+      updatedAt: serverTimestamp()
+    });
+    showToast("Dokumen ditolak dan dikembalikan ke draft.", "success");
+    detailPanel.style.display = "none";
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal menolak dokumen:", error);
+    showToast("Gagal menolak dokumen. Coba lagi.", "error");
+  }
+});
 
-if (exportExcelBtn) {
-  exportExcelBtn.addEventListener("click", () => {
-    const rows = getVisibleDocuments().map((d) => ({
-      "Nomor Surat": d.documentNumber || "-",
-      "Template": d.templateName || "-",
-      "Status": statusInfo(d.status).label,
-      "Dibuat Oleh": d.createdByUsername || "-",
-      "Tanggal Dibuat": formatDate(d.createdAt),
-      "Tanggal Rilis": formatDate(d.releasedAt)
-    }));
-    if (rows.length === 0) {
-      showToast("Tidak ada data untuk diexport.", "error");
-      return;
-    }
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Rekap Surat");
-    XLSX.writeFile(wb, `rekap-surat-${Date.now()}.xlsx`);
-  });
-}
+exportExcelBtn.addEventListener("click", () => {
+  const rows = getVisibleDocuments().map((d) => ({
+    "Nomor Surat": d.documentNumber || "-",
+    "Template": d.templateName || "-",
+    "Status": statusInfo(d.status).label,
+    "Dibuat Oleh": d.createdByUsername || "-",
+    "Tanggal Dibuat": formatDate(d.createdAt),
+    "Tanggal Rilis": formatDate(d.releasedAt)
+  }));
+  if (rows.length === 0) {
+    showToast("Tidak ada data untuk diexport.", "error");
+    return;
+  }
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Rekap Surat");
+  XLSX.writeFile(wb, `rekap-surat-${Date.now()}.xlsx`);
+});
 
 function fileBaseName(item) {
   return (item.documentNumber || item.templateName || "dokumen").replace(/[^a-zA-Z0-9]+/g, "-");
