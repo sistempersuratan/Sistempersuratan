@@ -23,7 +23,8 @@ User buat dokumen ──► DRAFT ──(user ajukan)──► PENDING ──(ad
 
 - Draft boleh diedit/dihapus pemiliknya. Setelah diajukan (pending) dan setelah
   rilis, user tidak bisa mengubahnya lagi.
-- Nomor surat diisi admin saat merilis.
+- Nomor surat **diberikan otomatis oleh sistem** saat admin merilis (lihat *Penomoran surat*).
+- Surat buatan admin juga berstatus Draft dulu, lalu admin menekan *Setujui & Rilis* sendiri.
 - Aturan ini **dijaga di Firestore Security Rules** (bukan cuma di tampilan).
 
 ## Struktur Project
@@ -46,6 +47,25 @@ pages/
   users.html, templates.html, template-editor.html
   create-document.html, documents.html, profile.html
 ```
+
+## Penomoran surat
+
+Nomor diberikan **otomatis saat admin merilis**, urutannya dihitung **per jenis surat
+(template) per tahun**. Diatur di Template Editor:
+
+- **Kode Jenis Surat** — mis. `ST` (Surat Tugas), `INV` (Invoice).
+- **Format Nomor** — bawaan `{no}/{kode}/{bln}/{tahun}` → `001/ST/XI/2026`.
+  Kode yang bisa dipakai: `{no}` urutan 3 digit, `{kode}`, `{bln}` bulan romawi,
+  `{bulan}` bulan angka, `{tahun}`. Wajib memuat `{no}`.
+- Taruh `{{nomor_surat}}` di isi surat di tempat nomor ingin muncul. Sebelum rilis,
+  tempat itu tampil sebagai "[nomor diberikan saat rilis]".
+- `nomor_surat` adalah nama khusus milik sistem — jangan dibuat sebagai field isian
+  (Template Editor menolaknya; field lama bernama itu otomatis disembunyikan dari form).
+- Pemberian nomor memakai **transaksi Firestore** sehingga dua admin yang merilis
+  bersamaan tidak mendapat nomor kembar, dan dokumen tidak bisa dirilis dua kali.
+- Template lama yang belum diberi kode memakai kode `DOK` — buka Template Editor
+  dan isi Kode Jenis Surat-nya.
+- Nomor mulai 001 lagi tiap tahun baru, terpisah untuk tiap template.
 
 ## Keamanan
 
@@ -73,8 +93,9 @@ yang unik.
 ## Struktur data Firestore
 
 - `users/{uid}`: `username`, `email`, `role` (`admin`/`user`), `active`, `createdAt`, `updatedAt`
-- `templates/{id}`: `name`, `category`, `description`, `html`, `fields[]`
+- `templates/{id}`: `name`, `category`, `description`, `numberCode`, `numberFormat`, `html`, `fields[]`
   (`name`, `label`, `type`, `required`, `options`), `active`, `createdAt`, `updatedAt`
+- `counters/{templateId}_{tahun}`: `last` (nomor urut terakhir), `templateId`, `year`, `updatedAt`
 - `documents/{id}`: `userId`, `createdByUsername`, `templateId`, `templateName`,
   `data`, `renderedHtml`, `status` (`draft`/`pending`/`released`), `documentNumber`,
   `rejectionReason`, `releasedAt`, `releasedBy`, `createdAt`, `updatedAt`
@@ -131,7 +152,11 @@ relatif (helper `pagePrefix()` di `auth.js`), jadi aman di subfolder
 - [ ] Edit draft → perubahan tersimpan, isi pratinjau ikut berubah.
 - [ ] User Ajukan Rilis → status Menunggu; Edit/Hapus hilang.
 - [ ] Admin Tolak → kembali Draft (alasan tampil); user bisa edit lalu ajukan ulang.
-- [ ] Admin Setujui & Rilis dengan nomor surat → status Rilis.
+- [ ] Admin Setujui & Rilis → status Rilis, nomor otomatis (mis. `001/ST/XI/2026`),
+      dokumen kedua jenis yang sama dapat `002`, jenis lain mulai `001` sendiri.
+- [ ] `{{nomor_surat}}` di isi surat berubah menjadi nomor resmi setelah rilis.
+- [ ] Template Editor: Kode Jenis Surat wajib; contoh nomor berubah saat diketik.
+- [ ] Dua tab, login akun berbeda → tidak saling menimpa (login per tab).
 - [ ] Search, filter status, dan sort di daftar dokumen bekerja.
 - [ ] **Uji keamanan:** login sebagai user, buka Console, coba
       `updateDoc` status dokumen jadi `released` → harus ditolak

@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Akun harus masuk DAN tidak dinonaktifkan oleh admin
+    function isActiveUser() {
+      return isSignedIn() && myProfile().get('active', true) != false;
+    }
+
+    function isAdmin() {
+      return isActiveUser() && myProfile().role == 'admin';
+    }
+
+    // Pemilik dokumen yang masih berstatus draft
+    function userOwnsDraft() {
+      return isActiveUser()
+        && resource.data.userId == request.auth.uid
+        && resource.data.get('status', 'draft') == 'draft';
+    }
+
+    match /users/{userId} {
+      // Profil sendiri tetap bisa dibaca walau akun nonaktif
+      // (supaya aplikasi bisa menampilkan pesan "akun dinonaktifkan")
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+
+      // Admin boleh list semua user. Selain itu hanya query dengan limit(1),
+      // dipakai halaman login untuk mencari email dari username.
+      allow list: if isAdmin() || request.query.limit <= 1;
+
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+                    || (request.auth.uid == userId
+                        && request.resource.data.role == resource.data.role
+                        && request.resource.data.active == resource.data.active
+                        && request.resource.data.username == resource.data.username);
+      allow delete: if isAdmin();
+    }
+
+    match /templates/{templateId} {
+      allow read: if isActiveUser();
+      allow write: if isAdmin();
+    }
+
+    match /documents/{documentId} {
+      allow read: if isActiveUser()
+                  && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Dokumen baru WAJIB berstatus draft dan belum bernomor
+      allow create: if isActiveUser()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'draft'
+                    && request.resource.data.documentNumber == null;
+
+      // Admin: bebas (approve/rilis/tolak). User: hanya draft miliknya,
+      // hanya boleh tetap draft atau diajukan (pending), dan tidak boleh
+      // menyentuh nomor surat / data rilis / pemilik / template.
+      allow update: if isAdmin()
+                    || (userOwnsDraft()
+                        && request.resource.data.userId == resource.data.userId
+                        && request.resource.data.templateId == resource.data.templateId
+                        && request.resource.data.status in ['draft', 'pending']
+                        && request.resource.data.documentNumber == resource.data.documentNumber
+                        && request.resource.data.get('releasedAt', null) == resource.data.get('releasedAt', null)
+                        && request.resource.data.get('releasedBy', null) == resource.data.get('releasedBy', null));
+
+      // User hanya boleh menghapus draft miliknya; dokumen yang sudah
+      // diajukan/dirilis hanya bisa dihapus admin.
+      allow delete: if isAdmin() || userOwnsDraft();
+    }
+
+    // Penghitung nomor surat per jenis surat per tahun (diubah saat admin merilis)
+    match /counters/{counterId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if isActiveUser();
+      allow write: if isAdmin();
+    }
+  }
+}
