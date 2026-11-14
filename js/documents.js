@@ -14,6 +14,7 @@ import {
   getDocs,
   doc,
   updateDoc,
+  deleteDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -41,6 +42,11 @@ const shareEmailBtn = document.getElementById("shareEmailBtn");
 const submitBtn = document.getElementById("submitBtn");
 const releaseBtn = document.getElementById("releaseBtn");
 const rejectBtn = document.getElementById("rejectBtn");
+const editBtn = document.getElementById("editBtn");
+const deleteBtn = document.getElementById("deleteBtn");
+const searchInput = document.getElementById("searchInput");
+const statusFilter = document.getElementById("statusFilter");
+const sortSelect = document.getElementById("sortSelect");
 
 let currentUser = null;
 let currentProfile = null;
@@ -109,14 +115,40 @@ function statusInfo(status) {
   }
 }
 
+function getVisibleDocuments() {
+  const keyword = searchInput.value.trim().toLowerCase();
+  const status = statusFilter.value;
+  let list = documentsCache.filter((d) => {
+    if (status && (d.status || "draft") !== status) return false;
+    if (!keyword) return true;
+    const haystack = [d.documentNumber, d.templateName, d.createdByUsername]
+      .filter(Boolean).join(" ").toLowerCase();
+    return haystack.includes(keyword);
+  });
+  list.sort((a, b) => sortSelect.value === "oldest"
+    ? tsToMillis(a.createdAt) - tsToMillis(b.createdAt)
+    : tsToMillis(b.createdAt) - tsToMillis(a.createdAt));
+  return list;
+}
+
+[searchInput, statusFilter, sortSelect].forEach((el) => {
+  el.addEventListener("input", () => renderTable());
+});
+
 function renderTable() {
   if (documentsCache.length === 0) {
     tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Belum ada dokumen. Buat dari menu "Buat Dokumen".</td></tr>`;
     return;
   }
 
+  const visible = getVisibleDocuments();
+  if (visible.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Tidak ada dokumen yang cocok dengan pencarian/filter.</td></tr>`;
+    return;
+  }
+
   const isAdmin = currentProfile.role === "admin";
-  tableBody.innerHTML = documentsCache.map((d) => {
+  tableBody.innerHTML = visible.map((d) => {
     const s = statusInfo(d.status);
     return `
     <tr>
@@ -148,8 +180,12 @@ function openDetail(item) {
   const isAdmin = currentProfile.role === "admin";
   const isOwner = item.userId === currentUser.uid;
 
-  submitBtn.style.display = !isAdmin && isOwner && item.status === "draft" ? "" : "none";
-  releaseBtn.style.display = isAdmin && item.status === "pending" ? "" : "none";
+  const isDraft = (item.status || "draft") === "draft";
+  submitBtn.style.display = !isAdmin && isOwner && isDraft ? "" : "none";
+  editBtn.style.display = isOwner && isDraft ? "" : "none";
+  deleteBtn.style.display = isOwner && isDraft ? "" : "none";
+  // Admin merilis dokumen yang diajukan user, atau draft miliknya sendiri
+  releaseBtn.style.display = isAdmin && (item.status === "pending" || (isOwner && isDraft)) ? "" : "none";
   rejectBtn.style.display = isAdmin && item.status === "pending" ? "" : "none";
 
   detailPanel.style.display = "block";
@@ -229,6 +265,26 @@ async function shareDocument(channel) {
   showToast("PDF sudah diunduh. Lampirkan manual di aplikasi yang terbuka.", "info");
 }
 
+editBtn.addEventListener("click", () => {
+  if (!activeDocument) return;
+  window.location.href = `create-document.html?edit=${activeDocument.id}`;
+});
+
+deleteBtn.addEventListener("click", async () => {
+  if (!activeDocument) return;
+  if (!confirm("Hapus draft dokumen ini? Tindakan ini tidak bisa dibatalkan.")) return;
+  try {
+    await deleteDoc(doc(db, "documents", activeDocument.id));
+    showToast("Draft dokumen berhasil dihapus.", "success");
+    detailPanel.style.display = "none";
+    activeDocument = null;
+    loadDocuments();
+  } catch (error) {
+    console.error("Gagal menghapus dokumen:", error);
+    showToast("Gagal menghapus dokumen. Coba lagi.", "error");
+  }
+});
+
 submitBtn.addEventListener("click", async () => {
   if (!activeDocument) return;
   if (!confirm("Ajukan dokumen ini untuk dirilis? Setelah diajukan, kamu tidak bisa membatalkannya sendiri — tunggu keputusan admin.")) return;
@@ -292,7 +348,7 @@ rejectBtn.addEventListener("click", async () => {
 });
 
 exportExcelBtn.addEventListener("click", () => {
-  const rows = documentsCache.map((d) => ({
+  const rows = getVisibleDocuments().map((d) => ({
     "Nomor Surat": d.documentNumber || "-",
     "Template": d.templateName || "-",
     "Status": statusInfo(d.status).label,
