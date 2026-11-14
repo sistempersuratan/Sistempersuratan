@@ -64,9 +64,24 @@
           <label for="tplCategory">Kategori</label>
           <input type="text" id="tplCategory" placeholder="Contoh: Surat">
         </div>
-        <div class="field" style="margin-bottom:0;">
+        <div class="field">
           <label for="tplDescription">Deskripsi</label>
           <input type="text" id="tplDescription" placeholder="Deskripsi singkat template ini">
+        </div>
+        <div class="field">
+          <label for="tplNumberCode">Kode Jenis Surat (untuk nomor surat)</label>
+          <input type="text" id="tplNumberCode" placeholder="Contoh: ST" maxlength="12" style="text-transform:uppercase;">
+          <div class="field-hint">Dipakai di nomor surat otomatis. Contoh: ST = Surat Tugas, INV = Invoice.</div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label for="tplNumberFormat">Format Nomor Surat</label>
+          <input type="text" id="tplNumberFormat" placeholder="{no}/{kode}/{bln}/{tahun}">
+          <div class="field-hint">
+            Contoh hasil: <strong id="numberExample">001/DOK/I/2026</strong><br>
+            Kode: <code>{no}</code> urutan, <code>{kode}</code> kode jenis surat, <code>{bln}</code> bulan romawi,
+            <code>{bulan}</code> bulan angka, <code>{tahun}</code> tahun. Urutan mulai 001 lagi tiap tahun, terpisah per template.<br>
+            Taruh <code>{{nomor_surat}}</code> di isi surat di tempat nomor ingin muncul. Nomor diberikan otomatis saat admin merilis.
+          </div>
         </div>
       </div>
 
