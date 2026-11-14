@@ -10,7 +10,10 @@ import { db } from "./firebase-config.js";
 import {
   collection,
   getDocs,
+  getDoc,
+  doc,
   addDoc,
+  updateDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -30,6 +33,12 @@ const previewBtn = document.getElementById("previewBtn");
 const saveBtn = document.getElementById("saveBtn");
 const previewPanel = document.getElementById("previewPanel");
 const previewArea = document.getElementById("previewArea");
+const pageTitle = document.getElementById("pageTitle");
+const pageSubtitle = document.getElementById("pageSubtitle");
+
+// Mode edit: create-document.html?edit=<id dokumen>
+const editId = new URLSearchParams(window.location.search).get("edit");
+let editingDocument = null;
 
 let templatesCache = [];
 let currentUser = null;
@@ -46,11 +55,15 @@ requireAuth((user, profile) => {
   userRoleBadge.className = `badge ${profile.role === "admin" ? "admin" : "user"}`;
 
   navDashboardLinks.forEach((el) => {
-  el.addEventListener("click", (e) => {
-    e.preventDefault();
-    window.location.href = currentProfile.role === "admin" ? "../admin.html" : "../dashboard.html";
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.href = currentProfile.role === "admin" ? "../admin.html" : "../dashboard.html";
+    });
   });
-});
+
+  if (profile.role === "admin") {
+    adminOnlyLinks.forEach((el) => (el.style.display = ""));
+  }
 
   loadTemplates();
 });
@@ -74,10 +87,58 @@ async function loadTemplates() {
       .filter((t) => t.active !== false);
     templatesCache.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     renderTemplateOptions();
+    if (editId) await startEditMode();
   } catch (error) {
     console.error("Gagal memuat daftar template:", error);
     templateSelect.innerHTML = `<option value="">Gagal memuat template</option>`;
     showToast("Gagal memuat daftar template. Coba refresh halaman.", "error");
+  }
+}
+
+async function startEditMode() {
+  try {
+    const snap = await getDoc(doc(db, "documents", editId));
+    if (!snap.exists()) {
+      showToast("Dokumen tidak ditemukan.", "error");
+      return;
+    }
+    const d = { id: snap.id, ...snap.data() };
+
+    if (d.userId !== currentUser.uid || (d.status || "draft") !== "draft") {
+      showToast("Hanya draft milik sendiri yang bisa diedit.", "error");
+      setTimeout(() => (window.location.href = "documents.html"), 1200);
+      return;
+    }
+
+    let tpl = templatesCache.find((t) => t.id === d.templateId);
+    if (!tpl) {
+      const tSnap = await getDoc(doc(db, "templates", d.templateId));
+      if (!tSnap.exists()) {
+        showToast("Template dokumen ini sudah dihapus, dokumen tidak bisa diedit.", "error");
+        return;
+      }
+      tpl = { id: tSnap.id, ...tSnap.data() };
+      templatesCache.push(tpl);
+      renderTemplateOptions();
+    }
+
+    editingDocument = d;
+    templateSelect.value = tpl.id;
+    templateSelect.disabled = true;
+    templateSelect.dispatchEvent(new Event("change"));
+
+    // isi form dengan data lama
+    for (const f of tpl.fields || []) {
+      const el = document.getElementById(`field_${f.name}`);
+      if (el && d.data && d.data[f.name] !== undefined) el.value = d.data[f.name];
+    }
+
+    pageTitle.textContent = "Edit Dokumen";
+    pageSubtitle.textContent = "Ubah isian, lalu simpan. Setelah itu bisa diajukan ulang dari halaman Dokumen Saya.";
+    saveBtn.textContent = "Simpan Perubahan";
+  } catch (error) {
+    console.error("Gagal memuat dokumen untuk diedit:", error);
+    showToast("Gagal memuat dokumen. Coba refresh halaman.", "error");
   }
 }
 
@@ -175,8 +236,20 @@ saveBtn.addEventListener("click", async () => {
 
   const renderedHtml = renderTemplate(selectedTemplate.html, data);
 
-  setButtonLoading(saveBtn, true, "Simpan Dokumen", "Menyimpan...");
+  const idleText = editingDocument ? "Simpan Perubahan" : "Simpan Dokumen";
+  setButtonLoading(saveBtn, true, idleText, "Menyimpan...");
   try {
+    if (editingDocument) {
+      await updateDoc(doc(db, "documents", editingDocument.id), {
+        data,
+        renderedHtml,
+        updatedAt: serverTimestamp()
+      });
+      showToast("Perubahan dokumen disimpan.", "success");
+      window.location.href = "documents.html";
+      return;
+    }
+
     await addDoc(collection(db, "documents"), {
       templateId: selectedTemplate.id,
       templateName: selectedTemplate.name,
@@ -197,7 +270,7 @@ saveBtn.addEventListener("click", async () => {
     console.error("Gagal menyimpan dokumen:", error);
     showToast("Gagal menyimpan dokumen. Coba lagi.", "error");
   } finally {
-    setButtonLoading(saveBtn, false, "Simpan Dokumen");
+    setButtonLoading(saveBtn, false, editingDocument ? "Simpan Perubahan" : "Simpan Dokumen");
   }
 });
 
