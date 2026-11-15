@@ -30,9 +30,15 @@
       </div>
    <div class="field">
         <label for="password">Password</label>
-        <div style="position: relative;">
-          <input type="password" id="password" name="password" autocomplete="current-password" required style="width: 100%; padding-right: 40px; box-sizing: border-box;">
-          <span id="togglePassword" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; user-select: none;">👁️</span>
+        <div style="position: relative; display: flex; align-items: center;">
+          <input type="password" id="password" name="password" autocomplete="current-password" required style="width: 100%; padding-right: 45px; box-sizing: border-box;">
+          <span id="togglePassword" style="position: absolute; right: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #666;" title="Lihat password">
+            <!-- Ikon Mata SVG (Default: Tertutup / Garis) -->
+            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </span>
         </div>
       </div>
       <button type="submit" class="btn btn-primary" id="loginBtn">
