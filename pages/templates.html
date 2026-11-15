@@ -54,6 +54,7 @@
         </div>
         <div style="display:flex; gap:10px;">
           <button class="btn-header-logout js-logout" type="button">Keluar</button>
+          <button class="btn" id="openImportBtn" type="button" style="width:auto; padding:9px 16px;">Impor Template Contoh</button>
           <a class="btn btn-primary" href="template-editor.html" style="width:auto; padding:9px 16px; text-decoration:none; display:inline-flex; align-items:center;">+ Template Baru</a>
         </div>
       </div>
@@ -75,6 +76,22 @@
         </table>
       </div>
     </main>
+  </div>
+
+  <!-- Dialog impor template contoh -->
+  <div id="importOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50; align-items:center; justify-content:center; padding:16px;">
+    <div class="panel" style="max-width:520px; width:100%; max-height:90vh; overflow:auto; margin:0;">
+      <h2 style="margin:0 0 4px 0;">Impor Template Contoh</h2>
+      <div class="subtitle" style="margin-bottom:12px;">Pilih template yang ingin ditambahkan. Setelah diimpor, template bisa diedit di Template Editor. Template yang sudah pernah diimpor ditandai dan dilewati.</div>
+      <label style="display:flex; gap:8px; align-items:center; font-weight:600; margin-bottom:8px;">
+        <input type="checkbox" id="importSelectAll"> Pilih semua yang belum diimpor
+      </label>
+      <div id="importList" style="border-top:1px solid #ddd; padding-top:8px;"></div>
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+        <button class="btn" id="importCancelBtn" type="button" style="width:auto; padding:9px 16px;">Batal</button>
+        <button class="btn btn-primary" id="importConfirmBtn" type="button" style="width:auto; padding:9px 16px;">Impor</button>
+      </div>
+    </div>
   </div>
 
   <div class="toast-stack" id="toastStack"></div>
