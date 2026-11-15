@@ -28,9 +28,12 @@
         <label for="username">Username</label>
         <input type="text" id="username" name="username" autocomplete="username" required>
       </div>
-      <div class="field">
+   <div class="field">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required>
+        <div style="position: relative;">
+          <input type="password" id="password" name="password" autocomplete="current-password" required style="width: 100%; padding-right: 40px; box-sizing: border-box;">
+          <span id="togglePassword" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; user-select: none;">👁️</span>
+        </div>
       </div>
       <button type="submit" class="btn btn-primary" id="loginBtn">
         <span id="loginBtnText">Masuk</span>
