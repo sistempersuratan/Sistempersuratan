@@ -10,7 +10,8 @@ const usernameInput = document.getElementById("username");
 const passwordInput = document.getElementById("password");
 const loginBtn = document.getElementById("loginBtn");
 const formError = document.getElementById("formError");
-const forgotPasswordLink = document.getElementById("forgotPasswordLink"); // <-- Tambahkan ini
+const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+const togglePassword = document.getElementById("togglePassword"); // <-- Tambahan untuk tombol mata
 
 function showFormError(message) {
   formError.textContent = message;
@@ -20,6 +21,19 @@ function showFormError(message) {
 function clearFormError() {
   formError.textContent = "";
   formError.classList.remove("show");
+}
+
+// ===========================================================
+// Handler Tombol Lihat/Sembunyikan Password (Ikon Mata)
+// ===========================================================
+if (togglePassword && passwordInput) {
+  togglePassword.addEventListener("click", function () {
+    const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
+    passwordInput.setAttribute("type", type);
+    
+    // Mengganti ikon emoji mata terbuka / tertutup
+    this.textContent = type === "password" ? "👁️" : "🙈";
+  });
 }
 
 // Handler Submit Login
