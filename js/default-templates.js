@@ -375,3 +375,24 @@ export const DEFAULT_TEMPLATES = [
     )
   }
 ].map((t) => ({ numberFormat: FORMAT_NOMOR, ...t }));
+
+// ---------- Kerangka awal untuk "Template Baru" di Template Editor ----------
+// Dipakai template-editor.js saat admin membuat template dari nol, supaya
+// langsung berisi kop surat, nomor otomatis, isi, dan blok tanda tangan
+// seperti template bawaan. Admin tinggal mengubah judul & kalimatnya.
+
+export const STARTER_TEMPLATE = {
+  category: "Umum",
+  fields: [
+    ...FIELDS_INSTANSI,
+    f("isi_surat", "Isi Surat", "textarea"),
+    ...FIELDS_TTD
+  ],
+  html: susun(
+    judul("JUDUL SURAT") +
+    p("Dengan hormat,") +
+    isiBebas("isi_surat") +
+    p("Demikian surat ini kami sampaikan. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.") +
+    TTD
+  )
+};

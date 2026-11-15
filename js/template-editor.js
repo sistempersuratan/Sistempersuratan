@@ -11,6 +11,7 @@ import { requireAuth, requireRole, logout } from "./auth.js";
 import { showToast, setButtonLoading } from "./ui.js";
 import { db } from "./firebase-config.js";
 import { renderTemplate, buildDocumentNumber, DEFAULT_NUMBER_FORMAT } from "./template-engine.js";
+import { STARTER_TEMPLATE } from "./default-templates.js";
 import {
   doc,
   getDoc,
@@ -68,9 +69,19 @@ requireAuth((user, profile) => {
     editorTitle.textContent = "Edit Template";
     loadExistingTemplate(templateId);
   } else {
-    renderFields();
+    applyStarterTemplate();
   }
 });
+
+// Template baru tidak mulai kosong: diisi kerangka lengkap (kop, nomor, isi, TTD)
+// seperti template bawaan, supaya admin tinggal mengubah kata-katanya.
+function applyStarterTemplate() {
+  tplCategory.value = STARTER_TEMPLATE.category;
+  tplHtml.value = STARTER_TEMPLATE.html;
+  fields = STARTER_TEMPLATE.fields.map((f) => ({ options: "", ...f, uid: "f" + (fieldUidCounter++) }));
+  renderFields();
+  renderCanvasFromHtml();
+}
 
 logoutButtons.forEach((btn) => {
   btn.addEventListener("click", async () => {
