@@ -113,19 +113,6 @@
 .main-header h1{font-size:24px;}
 .main-header .subtitle{color:var(--ink-500); font-size:14px;}
 
-.btn-header-logout{
-  flex:none;
-  align-self:flex-start;
-  background:var(--paper-0);
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  color:var(--ink-700);
-  font-size:13px;
-  font-weight:500;
-  padding:8px 14px;
-  cursor:pointer;
-}
-.btn-header-logout:hover{background:var(--paper-100);}
 
 .stat-grid{
   display:grid;
@@ -349,3 +336,9 @@
   box-shadow:var(--shadow-2); padding:6px; z-index:5;
 }
 .export-menu.show{display:block;}
+
+/* Blok yang hanya tampil di layar kecil (saat sidebar disembunyikan) */
+.mobile-only{display:none;}
+@media (max-width:860px){
+  .mobile-only{display:block;}
+}
