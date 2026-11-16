@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tanda Tangan &amp; Cap — Sistem Persuratan</title>
+<title>Kop, Tanda Tangan &amp; Cap — Sistem Persuratan</title>
 <link rel="icon" href="../assets/favicon.png">
 <link rel="stylesheet" href="../css/style.css">
 <link rel="stylesheet" href="../css/dashboard.css">
@@ -17,11 +17,41 @@
     <main class="main">
       <div class="main-header">
         <div>
-          <h1>Tanda Tangan &amp; Cap</h1>
-          <div class="subtitle">Aset resmi yang dipasang saat dokumen diterbitkan.</div>
+          <h1>Kop, Tanda Tangan &amp; Cap</h1>
+          <div class="subtitle">Kop surat dan logo tampil di semua dokumen; tanda tangan &amp; cap dipasang saat dokumen diterbitkan.</div>
         </div>
-        <button class="btn-header-logout js-logout" type="button">Keluar</button>
       </div>
+
+      <section class="panel" style="margin-bottom:16px;">
+        <h3 class="section-title">Kop surat &amp; logo</h3>
+        <div class="notice">
+          Dipakai di bagian atas semua dokumen yang jenis dokumennya memakai penanda <code>{{kop_surat}}</code>
+          (otomatis ada di contoh surat). Perubahan langsung tampil di pratinjau pengguna dan dokumen yang belum terbit; dokumen yang sudah terbit tidak berubah.
+        </div>
+        <div id="kopError" class="form-error"></div>
+        <div class="asset-form">
+          <div class="field">
+            <label for="kopName">Nama instansi / perusahaan</label>
+            <input type="text" id="kopName" class="input" autocomplete="off" placeholder="Contoh: PT Maju Bersama">
+          </div>
+          <div class="field">
+            <label for="kopAddress">Alamat</label>
+            <textarea id="kopAddress" class="input" rows="2" placeholder="Jl. Contoh No. 1, Denpasar, Bali"></textarea>
+          </div>
+          <div class="field">
+            <label for="kopContact">Kontak (opsional)</label>
+            <input type="text" id="kopContact" class="input" autocomplete="off" placeholder="Telp. (0361) 000000 · info@contoh.co.id">
+          </div>
+          <div class="field">
+            <label for="kopLogoFile">Logo (PNG/JPG/WebP, opsional)</label>
+            <input type="file" id="kopLogoFile" accept="image/png,image/jpeg,image/webp" class="input">
+            <div class="field-hint">Dikecilkan otomatis (maks. ±150 KB). <button type="button" class="link-btn danger" id="kopLogoRemove" style="display:none;">Hapus logo</button></div>
+          </div>
+        </div>
+        <div class="field-hint" style="margin:6px 0;">Pratinjau kop:</div>
+        <div id="kopPreview" style="border:1px dashed var(--line); background:#fff; padding:14px 16px; font-family:'Times New Roman',Times,serif; color:#000; overflow-x:auto;"></div>
+        <button class="btn btn-primary btn-sm" id="kopSaveBtn" type="button" style="margin-top:12px; padding:10px 18px;">Simpan Kop Surat</button>
+      </section>
 
       <section class="panel" style="margin-bottom:16px;">
         <h3 class="section-title">Tambah aset</h3>
