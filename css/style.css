@@ -225,3 +225,30 @@ textarea.input{
   resize:vertical;
   min-height:90px;
 }
+
+/* ===========================================================
+   Komponen bersama (navigasi, ikon, tombol sekunder, badge status)
+   =========================================================== */
+.ico{width:18px;height:18px;flex:none;}
+.nav-link .ico{opacity:.85;}
+.nav-link.active .ico{opacity:1;}
+.bottom-nav .nav-link .ico{width:20px;height:20px;}
+
+.btn-sm{width:auto; padding:7px 12px; font-size:13px;}
+.muted{color:var(--ink-500);}
+.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
+
+/* Modal sederhana (impor jenis dokumen, penerbitan dokumen) */
+.modal-overlay{
+  display:none; position:fixed; inset:0; z-index:80;
+  background:rgba(26,34,51,.5);
+  align-items:center; justify-content:center; padding:16px;
+}
+.modal-overlay.show{display:flex;}
+.modal-box{
+  background:var(--paper-0); border-radius:var(--radius);
+  box-shadow:var(--shadow-2);
+  width:100%; max-width:560px; max-height:92vh; overflow:auto; padding:22px;
+}
+.modal-box.wide{max-width:860px;}
+.modal-actions{display:flex; gap:10px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap;}

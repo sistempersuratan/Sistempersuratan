@@ -209,3 +209,143 @@
     text-align:center;
   }
 }
+
+/* ===========================================================
+   Dashboard baru (js/dashboard-view.js)
+   =========================================================== */
+.dash-actions{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;}
+.btn-act{width:auto; display:inline-flex; align-items:center; gap:8px; padding:10px 16px; text-decoration:none; font-size:14px;}
+
+.flow{
+  display:grid; grid-template-columns:repeat(4, 1fr);
+  background:var(--paper-0); border:1px solid var(--line);
+  border-radius:var(--radius); overflow:hidden;
+}
+.flow-step{
+  padding:16px 18px; text-decoration:none; color:inherit;
+  border-right:1px solid var(--line);
+}
+.flow-step:last-child{border-right:none;}
+.flow-step:hover{background:var(--paper-100);}
+.flow-step .no{font-size:12px; color:var(--ink-500); margin-bottom:8px;}
+.flow-step .n{font-family:var(--font-display); font-size:30px; font-weight:600; line-height:1;}
+.flow-step .c{font-size:12.5px; color:var(--ink-500); margin-top:6px;}
+.flow-step.attn .n{color:var(--accent);}
+
+.dash-cols{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px; align-items:start;}
+.dash-cols.single{grid-template-columns:1fr;}
+
+.panel-title{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+.panel-title h3{margin:0; font-size:16px;}
+.panel-title a{font-size:13px; color:var(--ink-500);}
+
+.act-list{list-style:none; margin:0; padding:0;}
+.act-list li + li{border-top:1px solid var(--line);}
+.act-row{display:flex; justify-content:space-between; gap:12px; padding:11px 0; text-decoration:none; color:inherit;}
+.act-row:hover .t{text-decoration:underline;}
+.act-main{min-width:0;}
+.act-row .t{font-size:14px; font-weight:500;}
+.act-row .m{font-size:12.5px; color:var(--ink-500);}
+.act-row .m.warn{color:var(--accent);}
+.act-side{text-align:right; flex:none;}
+.act-side .m{margin-top:4px;}
+
+@media (max-width:860px){
+  .flow{grid-template-columns:1fr 1fr;}
+  .flow-step:nth-child(2){border-right:none;}
+  .flow-step:nth-child(-n+2){border-bottom:1px solid var(--line);}
+  .dash-cols{grid-template-columns:1fr;}
+}
+
+/* ---------- Halaman profil ---------- */
+.profile-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; max-width:960px;}
+@media (max-width:860px){ .profile-grid{grid-template-columns:1fr;} }
+.section-title{margin:0 0 14px 0; font-size:16px;}
+.info-list{margin:0; display:grid; gap:12px;}
+.info-list dt{font-size:12px; color:var(--ink-500); margin-bottom:2px;}
+.info-list dd{margin:0; font-size:14px; word-break:break-word;}
+.strength{display:flex; align-items:center; gap:10px; margin-top:8px;}
+.strength-bar{flex:1; height:6px; background:var(--paper-100); border-radius:3px; overflow:hidden;}
+.strength-bar span{display:block; height:100%; width:0; background:var(--accent); transition:width .2s;}
+.strength-text{font-size:12px; color:var(--ink-500); min-width:64px;}
+.rule-list{list-style:none; margin:8px 0 0 0; padding:0; font-size:12.5px; color:var(--ink-500);}
+.rule-list li::before{content:"○ "; }
+.rule-list li.ok{color:#2f7d4f;}
+.rule-list li.ok::before{content:"● ";}
+
+/* ---------- Halaman Tanda Tangan & Cap ---------- */
+.notice{border-left:3px solid var(--accent); background:var(--paper-100); padding:10px 14px; font-size:13px; margin-bottom:14px; border-radius:2px;}
+.asset-form{display:grid; grid-template-columns:1fr 1fr; gap:0 16px;}
+@media (max-width:860px){ .asset-form{grid-template-columns:1fr;} }
+.check-row{display:flex; gap:10px; align-items:flex-start; font-size:13.5px; cursor:pointer;}
+.check-row input{margin-top:3px;}
+.asset-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px;}
+.asset-card{border:1px solid var(--line); border-radius:var(--radius); padding:12px; background:var(--paper-0); display:flex; flex-direction:column; gap:6px;}
+.asset-card.revoked{opacity:.55;}
+.asset-card .thumb{height:80px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px dashed var(--line);}
+.asset-card .thumb img{max-height:72px; max-width:100%;}
+.asset-card .ttl{font-weight:600; font-size:14px;}
+.asset-card .sub{font-size:12.5px; color:var(--ink-500);}
+.asset-card .acts{display:flex; gap:12px; margin-top:4px;}
+
+/* ===========================================================
+   Baris tabel yang bisa diklik + popup pilihan (js/row-menu.js)
+   =========================================================== */
+.row-click{cursor:pointer;}
+.row-click:hover td{background:var(--paper-100);}
+.row-click:focus{outline:2px solid var(--ink-900); outline-offset:-2px;}
+
+.modal-box.small{max-width:380px;}
+.menu-list{display:flex; flex-direction:column;}
+.menu-label{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-500); padding:10px 10px 2px;}
+.menu-item{
+  display:block; width:100%; text-align:left; background:none; border:none;
+  padding:9px 10px; font:inherit; font-size:14px; color:inherit;
+  border-radius:4px; cursor:pointer;
+}
+.menu-item:hover:not(:disabled), .menu-item:focus-visible{background:var(--paper-100); outline:none;}
+.menu-item.primary{font-weight:600;}
+.menu-item.danger{color:var(--accent);}
+.menu-item:disabled{opacity:.45; cursor:not-allowed;}
+
+/* ===========================================================
+   Pembaca surat: halaman penuh bergaya kertas A4
+   =========================================================== */
+.reader{
+  display:none; position:fixed; inset:0; z-index:60;
+  background:#e4e2db; overflow:auto; overscroll-behavior:contain;
+}
+.reader-bar{
+  position:sticky; top:0; z-index:2;
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:10px 16px; background:var(--paper-0); border-bottom:1px solid var(--line);
+}
+.reader-title{flex:1; min-width:180px;}
+.reader-title strong{font-size:15px;}
+.reader-meta{font-size:12.5px; color:var(--ink-500);}
+.reader-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+.reader-stage{padding:24px 12px 60px;}
+
+.paper{
+  background:#fff; color:#000;
+  width:min(210mm, 100%); min-height:297mm; margin:0 auto;
+  padding:20mm; box-sizing:border-box;
+  box-shadow:0 2px 14px rgba(0,0,0,.2);
+  font-family:'Times New Roman', Times, serif; font-size:12pt; line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.paper img{max-width:100%;}
+.paper table{max-width:100%;}
+@media (max-width:860px){
+  .paper{padding:12mm 7mm; min-height:0; font-size:11.5pt;}
+  .reader-stage{padding:14px 8px 40px;}
+}
+
+/* Tombol Ekspor kecil di kanan atas surat */
+.export-wrap{position:relative;}
+.export-menu{
+  display:none; position:absolute; right:0; top:calc(100% + 6px); min-width:200px;
+  background:var(--paper-0); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow-2); padding:6px; z-index:5;
+}
+.export-menu.show{display:block;}
