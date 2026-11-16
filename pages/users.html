@@ -9,48 +9,17 @@
 <link rel="stylesheet" href="../css/dashboard.css">
 <link rel="stylesheet" href="../css/admin.css">
 </head>
-  <nav class="bottom-nav">
-    <a class="nav-link" href="../admin.html">Dashboard</a>
-    <a class="nav-link" href="users.html">User</a>
-    <a class="nav-link" href="templates.html">Template</a>
-    <a class="nav-link" href="documents.html">Dokumen</a>
-    <a class="nav-link" href="profile.html">Profil</a>
-  </nav>  
-<body>
+
+<body data-nav="admin" data-nav-active="users">
 
   <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="seal">SP</div>
-        <div class="name">Persuratan</div>
-      </div>
-
-      <nav class="nav-group">
-        <a class="nav-link" href="../admin.html">Dashboard</a>
-        <a class="nav-link active" href="users.html">Kelola User</a>
-        <a class="nav-link" href="templates.html">Kelola Template</a>
-        <a class="nav-link" href="documents.html">Semua Dokumen</a>
-    <a class="nav-link" href="profile.html">Profil</a>
-      
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="user-chip">
-          <div class="avatar" id="userInitial">?</div>
-          <div class="who">
-            <div class="n" id="userName">Memuat...</div>
-            <div class="r"><span class="badge admin">Admin</span></div>
-          </div>
-        </div>
-        <button class="nav-link js-logout" id="logoutBtn">Keluar</button>
-      </div>
-    </aside>
+    <aside class="sidebar" id="appSidebar"></aside>
 
     <main class="main">
       <div class="main-header">
         <div>
           <h1>Kelola User</h1>
-          <div class="subtitle">Tambah, ubah, atau nonaktifkan akun pengguna.</div>
+          <div class="subtitle">Klik salah satu akun untuk mengedit atau menghapusnya.</div>
         </div>
         <div style="display:flex; gap:10px;">
           <button class="btn-header-logout js-logout" type="button">Keluar</button>
@@ -66,11 +35,10 @@
               <th>Email</th>
               <th>Role</th>
               <th>Status</th>
-              <th>Aksi</th>
             </tr>
           </thead>
           <tbody id="usersTableBody">
-            <tr><td colspan="5" class="table-empty">Memuat data...</td></tr>
+            <tr><td colspan="4" class="table-empty">Memuat data...</td></tr>
           </tbody>
         </table>
       </div>
@@ -111,6 +79,18 @@
           </select>
         </div>
 
+        <div class="field" id="activeField">
+          <label for="fActive">Status akun</label>
+          <select id="fActive">
+            <option value="active">Aktif</option>
+            <option value="inactive">Nonaktif (tidak bisa login, data tetap tersimpan)</option>
+          </select>
+        </div>
+
+        <div class="field" id="resetField">
+          <button type="button" class="btn btn-secondary" id="resetPwBtn" style="width:auto; padding:9px 14px;">Kirim email reset password</button>
+        </div>
+
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="cancelUserBtn">Batal</button>
           <button type="submit" class="btn btn-primary" id="saveUserBtn" style="width:auto; padding:11px 20px;">Simpan</button>
@@ -119,8 +99,11 @@
     </div>
   </div>
 
+  <nav class="bottom-nav" id="appBottomNav"></nav>
+
   <div class="toast-stack" id="toastStack"></div>
 
+  <script type="module" src="../js/nav.js"></script>
   <script type="module" src="../js/firebase-config.js"></script>
   <script type="module" src="../js/users.js"></script>
 </body>

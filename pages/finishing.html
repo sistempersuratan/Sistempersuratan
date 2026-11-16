@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tanda Tangan &amp; Cap — Sistem Persuratan</title>
+<link rel="icon" href="../assets/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/dashboard.css">
+<link rel="stylesheet" href="../css/admin.css">
+</head>
+<body data-nav="admin" data-nav-active="finishing">
+
+  <div class="app-shell">
+    <aside class="sidebar" id="appSidebar"></aside>
+
+    <main class="main">
+      <div class="main-header">
+        <div>
+          <h1>Tanda Tangan &amp; Cap</h1>
+          <div class="subtitle">Aset resmi yang dipasang saat dokumen diterbitkan.</div>
+        </div>
+        <button class="btn-header-logout js-logout" type="button">Keluar</button>
+      </div>
+
+      <section class="panel" style="margin-bottom:16px;">
+        <h3 class="section-title">Tambah aset</h3>
+        <div class="notice">
+          Hanya unggah tanda tangan atau cap yang <strong>sudah disetujui pejabat berwenang</strong>.
+          Gambar hanya bisa dilihat admin, tidak dapat diganti setelah disimpan (bisa dicabut), dan dipasang ke dokumen hanya saat diterbitkan.
+        </div>
+        <div id="assetError" class="form-error"></div>
+        <div class="asset-form">
+          <div class="field">
+            <label for="assetType">Jenis</label>
+            <select id="assetType" class="input">
+              <option value="signature">Tanda tangan pejabat</option>
+              <option value="stamp">Cap perusahaan</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="assetOwner" id="assetOwnerLabel">Nama pejabat (sesuai penandatangan di dokumen)</label>
+            <input type="text" id="assetOwner" class="input" autocomplete="off">
+          </div>
+          <div class="field" id="assetTitleField">
+            <label for="assetTitle">Jabatan</label>
+            <input type="text" id="assetTitle" class="input" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="assetFile">Berkas gambar (PNG/JPG/WebP)</label>
+            <input type="file" id="assetFile" accept="image/png,image/jpeg,image/webp" class="input">
+            <div class="field-hint">Disarankan PNG berlatar transparan. Gambar dikecilkan otomatis (maks. ±150 KB).</div>
+          </div>
+        </div>
+        <div id="assetPreviewWrap" style="display:none; margin:6px 0 12px;">
+          <div class="field-hint">Pratinjau:</div>
+          <img id="assetPreview" alt="Pratinjau aset" style="max-height:90px; border:1px dashed var(--line); padding:6px; background:#fff;">
+        </div>
+        <label class="check-row">
+          <input type="checkbox" id="assetConfirm">
+          <span>Saya menyatakan aset ini telah disetujui oleh pejabat yang berwenang untuk dipakai pada dokumen resmi kantor.</span>
+        </label>
+        <button class="btn btn-primary btn-sm" id="assetSaveBtn" type="button" style="margin-top:12px; padding:10px 18px;">Simpan Aset</button>
+      </section>
+
+      <section class="panel" style="margin-bottom:16px;">
+        <h3 class="section-title">Aset tersimpan</h3>
+        <div class="field-hint" style="margin-bottom:10px;">Satu tanda tangan dan satu cap berstatus <strong>Dipakai</strong> akan dipasang pada dokumen mode lengkap.</div>
+        <div id="assetList" class="asset-grid"><div class="muted">Memuat...</div></div>
+      </section>
+
+      <section class="panel" style="padding:0; overflow-x:auto;">
+        <div style="padding:20px 24px 4px;">
+          <h3 class="section-title" style="margin-bottom:4px;">Pengaturan per jenis dokumen</h3>
+          <div class="field-hint">Default berlaku untuk dokumen berikutnya. Admin tetap bisa mengubahnya di pratinjau sebelum menerbitkan. Dokumen yang sudah terbit tidak berubah.</div>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Jenis Dokumen</th><th>Default saat terbit</th><th>Yang boleh memilih</th><th>Aksi</th></tr></thead>
+          <tbody id="typeBody"><tr><td colspan="4" class="table-empty">Memuat data...</td></tr></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <nav class="bottom-nav" id="appBottomNav"></nav>
+
+  <div class="toast-stack" id="toastStack"></div>
+
+  <script type="module" src="../js/nav.js"></script>
+  <script type="module" src="../js/firebase-config.js"></script>
+  <script type="module" src="../js/finishing.js"></script>
+</body>
+</html>

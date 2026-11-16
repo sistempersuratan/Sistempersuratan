@@ -9,35 +9,10 @@
 <link rel="stylesheet" href="../css/dashboard.css">
 <link rel="stylesheet" href="../css/admin.css">
 </head>
-<body>
+<body data-nav="shared" data-nav-active="profile">
 
   <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="seal">SP</div>
-        <div class="name">Persuratan</div>
-      </div>
-
-      <nav class="nav-group">
-        <a class="nav-link nav-dashboard-link" href="../dashboard.html">Dashboard</a>
-        <a class="nav-link" href="create-document.html">Buat Dokumen</a>
-        <a class="nav-link" href="documents.html">Dokumen Saya</a>
-        <a class="nav-link admin-only" href="users.html" style="display:none;">Kelola User</a>
-        <a class="nav-link admin-only" href="templates.html" style="display:none;">Kelola Template</a>
-        <a class="nav-link active" href="profile.html">Profil</a>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="user-chip">
-          <div class="avatar" id="userInitial">?</div>
-          <div class="who">
-            <div class="n" id="userName">Memuat...</div>
-            <div class="r"><span class="badge" id="userRoleBadge">User</span></div>
-          </div>
-        </div>
-        <button class="nav-link js-logout" id="logoutBtn">Keluar</button>
-      </div>
-    </aside>
+    <aside class="sidebar" id="appSidebar"></aside>
 
     <main class="main">
       <div class="main-header">
@@ -48,56 +23,60 @@
         <button class="btn-header-logout js-logout" type="button">Keluar</button>
       </div>
 
-      <div class="panel" style="max-width:480px; margin-bottom:16px;">
-        <h3 style="margin-bottom:14px;">Informasi Akun</h3>
-        <div class="field">
-          <label for="infoUsername">Username</label>
-          <input type="text" id="infoUsername" readonly>
-        </div>
-        <div class="field">
-          <label for="infoEmail">Email</label>
-          <input type="text" id="infoEmail" readonly>
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label for="infoRole">Peran</label>
-          <input type="text" id="infoRole" readonly>
-        </div>
-      </div>
+      <div class="profile-grid">
+        <section class="panel">
+          <h3 class="section-title">Profil Akun</h3>
+          <dl class="info-list">
+            <div><dt>Nama pengguna</dt><dd id="infoUsername">-</dd></div>
+            <div><dt>Email</dt><dd id="infoEmail">-</dd></div>
+            <div><dt>Peran</dt><dd id="infoRole">-</dd></div>
+            <div><dt>Status akun</dt><dd id="infoStatus">-</dd></div>
+            <div><dt>Akun dibuat</dt><dd id="infoCreated">-</dd></div>
+          </dl>
+          <div class="field-hint" style="margin-top:12px;">Nama pengguna, email, dan peran hanya dapat diubah oleh admin.</div>
+        </section>
 
-      <div class="panel" style="max-width:480px;">
-        <h3 style="margin-bottom:14px;">Ubah Password</h3>
-        <div id="passwordError" class="form-error"></div>
-        <form id="passwordForm" novalidate>
-          <div class="field">
-            <label for="currentPassword">Password saat ini</label>
-            <input type="password" id="currentPassword" autocomplete="current-password" required>
-          </div>
-          <div class="field">
-            <label for="newPassword">Password baru</label>
-            <input type="password" id="newPassword" autocomplete="new-password" minlength="6" required>
-            <div class="field-hint">Minimal 6 karakter.</div>
-          </div>
-          <div class="field">
-            <label for="confirmPassword">Ulangi password baru</label>
-            <input type="password" id="confirmPassword" autocomplete="new-password" required>
-          </div>
-          <button type="submit" class="btn btn-primary" id="savePasswordBtn" style="width:auto; padding:11px 20px;">Simpan Password</button>
-        </form>
+        <section class="panel">
+          <h3 class="section-title">Keamanan Akun</h3>
+          <div id="passwordError" class="form-error"></div>
+          <form id="passwordForm" novalidate>
+            <div class="field">
+              <label for="currentPassword">Password saat ini</label>
+              <input type="password" id="currentPassword" autocomplete="current-password" required>
+            </div>
+            <div class="field">
+              <label for="newPassword">Password baru</label>
+              <input type="password" id="newPassword" autocomplete="new-password" required>
+              <div class="strength" aria-live="polite"><div class="strength-bar"><span id="strengthFill"></span></div><span id="strengthText" class="strength-text">Belum diisi</span></div>
+              <ul class="rule-list" id="ruleList">
+                <li data-rule="len">Minimal 8 karakter</li>
+                <li data-rule="letter">Mengandung huruf</li>
+                <li data-rule="digit">Mengandung angka</li>
+              </ul>
+            </div>
+            <div class="field">
+              <label for="confirmPassword">Ulangi password baru</label>
+              <input type="password" id="confirmPassword" autocomplete="new-password" required>
+              <div class="field-hint" id="confirmHint"></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" id="savePasswordBtn" style="padding:11px 20px;">Simpan Password</button>
+          </form>
+
+          <dl class="info-list" style="margin-top:22px; padding-top:16px; border-top:1px solid var(--line);">
+            <div><dt>Login terakhir</dt><dd id="infoLastLogin">-</dd></div>
+            <div><dt>Masa sesi</dt><dd>Berlaku di tab ini saja. Keluar otomatis saat tab ditutup.</dd></div>
+          </dl>
+        </section>
       </div>
     </main>
   </div>
 
-  <nav class="bottom-nav">
-    <a class="nav-link nav-dashboard-link" href="../dashboard.html">Dashboard</a>
-    <a class="nav-link" href="create-document.html">Buat</a>
-    <a class="nav-link" href="documents.html">Dokumen</a>
-    <a class="nav-link admin-only" href="users.html" style="display:none;">User</a>
-    <a class="nav-link admin-only" href="templates.html" style="display:none;">Template</a>
-    <a class="nav-link active" href="profile.html">Profil</a>
-  </nav>
+
+  <nav class="bottom-nav" id="appBottomNav"></nav>
 
   <div class="toast-stack" id="toastStack"></div>
 
+  <script type="module" src="../js/nav.js"></script>
   <script type="module" src="../js/firebase-config.js"></script>
   <script type="module" src="../js/profile.js"></script>
 </body>
