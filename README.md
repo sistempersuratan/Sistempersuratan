@@ -27,6 +27,22 @@ User buat dokumen ──► DRAFT ──(user ajukan)──► PENDING ──(ad
 - Surat buatan admin juga berstatus Draft dulu, lalu admin menekan *Setujui & Rilis* sendiri.
 - Aturan ini **dijaga di Firestore Security Rules** (bukan cuma di tampilan).
 
+## Revisi tahap terbaru
+
+- **Dashboard lebih ringkas**: barisan tombol akses cepat dihapus (sudah ada di sidebar). Tersisa
+  ringkasan alur 4 tahap dan SATU daftar: "Perlu tindakan" bila ada, kalau tidak "Aktivitas terbaru".
+- **Tombol Keluar di header dihapus**. Keluar lewat sidebar; di layar kecil (sidebar tersembunyi)
+  tombolnya ada di halaman Profil.
+- **Impor contoh pindah ke Jenis Dokumen Baru**: di editor ada panel "Mulai dari contoh". Contoh dimuat
+  ke editor, diubah, lalu disimpan (tidak lagi impor massal dari halaman daftar).
+- **Editor 3 langkah**: 1. Info Dasar (identitas & aturan nomor), 2. Field Formulir (isian user),
+  3. Isi Surat (teks surat + tombol field/kop/TTD/cap).
+- **Kop surat & logo** (menu *Kop, TTD & Cap*, admin): disimpan di `settings/letterhead`, dibaca semua
+  pengguna. Template memakai penanda `{{kop_surat}}`; diganti saat tampil (pratinjau, arsip, cetak).
+  Dokumen draft selalu memakai kop terbaru; saat terbit, kop dibekukan ke dokumen.
+  Jenis dokumen lama yang masih memakai kop ketikan (`{{nama_instansi}}`) bisa diganti lewat tombol
+  "Ganti dengan kop surat resmi" di editornya. Aturan Firestore tidak perlu diubah.
+
 ## Struktur Project
 
 ```
