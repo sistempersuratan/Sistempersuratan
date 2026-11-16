@@ -48,6 +48,39 @@ pages/
   create-document.html, documents.html, profile.html
 ```
 
+## Revisi UI/UX & kelengkapan dokumen
+
+- **Jenis Dokumen**: istilah "Template" di tampilan diganti "Jenis Dokumen". Nama collection
+  `templates` dan variabel internal tidak berubah.
+- **Navigasi bersama** (`js/nav.js`): menu sidebar & menu bawah dibuat dari satu tempat.
+  Menambah/mengganti nama menu cukup mengubah daftar `ITEMS` di file itu.
+- **Dashboard** (`js/dashboard-view.js`): satu tampilan untuk admin dan user — akses cepat,
+  alur Pilih jenis → Isi data → Diperiksa → Terbit, daftar "perlu tindakan", dan aktivitas terbaru.
+- **Profil**: dibagi Profil Akun dan Keamanan Akun (email dari akun login, indikator kekuatan password).
+- **Tanda tangan & cap** (`pages/finishing.html`, admin): unggah aset resmi (wajib pernyataan persetujuan
+  pejabat), pilih yang dipakai, dan atur default per jenis dokumen. Saat admin menerbitkan dokumen,
+  muncul pratinjau + pilihan Lengkap / Tanpa TTD & cap. Isi dokumen dirender ulang dari data isian,
+  hasilnya disalin ke dokumen sehingga dokumen terbit tidak berubah bila pengaturan diganti.
+  Penanda posisi di jenis dokumen: `{{ttd_gambar}}` dan `{{cap_gambar}}`.
+  Koleksi baru: `signingAssets`; dokumen mendapat field `finishing`. Publish ulang `firestore.rules`.
+  Catatan: penerapan ke berkas Word/PDF asli menunggu jalur dokumen Word.
+
+## Template contoh bawaan
+
+`js/default-templates.js` berisi 10 template siap pakai: Surat Tugas, Surat Keterangan,
+Surat Undangan, Surat Permohonan, Surat Pengantar, Surat Izin/Cuti, Surat Kuasa,
+Surat Pernyataan, Berita Acara, dan Surat Edaran.
+
+Admin: **Kelola Template → Impor Template Contoh** → centang yang dibutuhkan → **Impor**.
+Template yang sudah ada (seedKey atau nama sama) dilewati, jadi aman diimpor berulang.
+Setelah diimpor, template diedit lewat Template Editor seperti biasa. Untuk menambah
+template contoh baru, tambahkan objek di `DEFAULT_TEMPLATES` (format sama dengan data
+`templates/{id}`, ditambah `seedKey` unik).
+
+Tombol **+ Template Baru** juga tidak mulai dari kosong: Template Editor otomatis diisi
+kerangka awal (`STARTER_TEMPLATE` di file yang sama) berisi kop surat, `{{nomor_surat}}`,
+kolom isi, dan blok tanda tangan. Ubah kerangka itu di `default-templates.js` jika perlu.
+
 ## Penomoran surat
 
 Nomor diberikan **otomatis saat admin merilis**, urutannya dihitung **per jenis surat

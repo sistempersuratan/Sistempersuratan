@@ -7,77 +7,32 @@
 <link rel="icon" href="assets/favicon.png">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin.css">
 </head>
-<body>
+<body data-nav="user" data-nav-active="dashboard">
 
   <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="seal">SP</div>
-        <div class="name">Persuratan</div>
-      </div>
-
-      <nav class="nav-group">
-        <a class="nav-link active" href="dashboard.html">Dashboard</a>
-        <a class="nav-link" href="pages/create-document.html">Buat Dokumen</a>
-        <a class="nav-link" href="pages/documents.html">Dokumen Saya</a>
-    <a class="nav-link" href="pages/profile.html">Profil</a>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="user-chip">
-          <div class="avatar" id="userInitial">?</div>
-          <div class="who">
-            <div class="n" id="userName">Memuat...</div>
-            <div class="r">User</div>
-          </div>
-        </div>
-        <button class="nav-link js-logout" id="logoutBtn">Keluar</button>
-      </div>
-    </aside>
+    <aside class="sidebar" id="appSidebar"></aside>
 
     <main class="main">
       <div class="main-header">
         <div>
           <h1 id="greeting">Halo</h1>
-          <div class="subtitle">Ringkasan aktivitas persuratan Anda.</div>
+          <div class="subtitle">Ringkasan pekerjaan persuratan Anda.</div>
         </div>
         <button class="btn-header-logout js-logout" type="button">Keluar</button>
       </div>
 
-      <div class="stat-grid">
-        <div class="stat-card">
-          <div class="label">Template Tersedia</div>
-          <div class="value" id="statTemplates">–</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Dokumen Saya</div>
-          <div class="value" id="statMyDocs">–</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Dokumen Bulan Ini</div>
-          <div class="value" id="statMonthDocs">–</div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="empty-state">
-          <div class="glyph">SP</div>
-          <p>Klik "Buat Dokumen" di sidebar untuk mulai membuat surat dari template yang tersedia.</p>
-        </div>
-      </div>
+      <div id="dashboardRoot"><div class="muted">Memuat ringkasan...</div></div>
     </main>
   </div>
 
-  <nav class="bottom-nav">
-    <a class="nav-link active" href="dashboard.html">Dashboard</a>
-    <a class="nav-link" href="pages/create-document.html">Buat</a>
-    <a class="nav-link" href="pages/documents.html">Dokumen</a>
-    <a class="nav-link" href="pages/profile.html">Profil</a>
-  </nav>
+
+  <nav class="bottom-nav" id="appBottomNav"></nav>
 
   <div class="toast-stack" id="toastStack"></div>
 
+  <script type="module" src="js/nav.js"></script>
   <script type="module" src="js/firebase-config.js"></script>
   <script type="module" src="js/dashboard.js"></script>
 </body>

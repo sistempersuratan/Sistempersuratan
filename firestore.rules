@@ -53,11 +53,20 @@ service cloud.firestore {
       allow read: if isActiveUser()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
+      // Kelengkapan dokumen (TTD & cap): user hanya boleh mengisi PERMINTAAN
+      // (finishing.requested). Keputusan akhir (mode, aset) hanya ditulis admin saat rilis.
+      function finishingOnlyRequest() {
+        return !('finishing' in request.resource.data)
+               || (request.resource.data.finishing.keys().hasOnly(['requested'])
+                   && request.resource.data.finishing.requested in ['complete', 'plain']);
+      }
+
       // Dokumen baru WAJIB berstatus draft dan belum bernomor
       allow create: if isActiveUser()
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.status == 'draft'
-                    && request.resource.data.documentNumber == null;
+                    && request.resource.data.documentNumber == null
+                    && finishingOnlyRequest();
 
       // Admin: bebas (approve/rilis/tolak). User: hanya draft miliknya,
       // hanya boleh tetap draft atau diajukan (pending), dan tidak boleh
@@ -67,6 +76,7 @@ service cloud.firestore {
                         && request.resource.data.userId == resource.data.userId
                         && request.resource.data.templateId == resource.data.templateId
                         && request.resource.data.status in ['draft', 'pending']
+                        && finishingOnlyRequest()
                         && request.resource.data.documentNumber == resource.data.documentNumber
                         && request.resource.data.get('releasedAt', null) == resource.data.get('releasedAt', null)
                         && request.resource.data.get('releasedBy', null) == resource.data.get('releasedBy', null));
@@ -79,6 +89,17 @@ service cloud.firestore {
     // Penghitung nomor surat per jenis surat per tahun (diubah saat admin merilis)
     match /counters/{counterId} {
       allow read, write: if isAdmin();
+    }
+
+    // Aset tanda tangan & cap: HANYA admin yang bisa membaca/menulis.
+    // Gambar tidak bisa diganti setelah dibuat; yang boleh berubah hanya status (cabut).
+    match /signingAssets/{assetId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.status == 'active';
+      allow update: if isAdmin()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'revokedAt', 'revokedBy']);
+      allow delete: if false;
     }
 
     match /settings/{docId} {
