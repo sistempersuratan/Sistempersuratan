@@ -10,13 +10,14 @@
 import { requireAuth, requireRole, logout } from "./auth.js";
 import { showToast, setButtonLoading } from "./ui.js";
 import { db } from "./firebase-config.js";
-import { renderTemplate, buildDocumentNumber, DEFAULT_NUMBER_FORMAT } from "./template-engine.js";
-import { STARTER_TEMPLATE } from "./default-templates.js";
+import { renderTemplate, buildDocumentNumber, applyLetterhead, DEFAULT_NUMBER_FORMAT } from "./template-engine.js";
+import { STARTER_TEMPLATE, DEFAULT_TEMPLATES } from "./default-templates.js";
 import {
   doc,
   getDoc,
   addDoc,
   setDoc,
+  getDocs,
   collection,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -48,6 +49,13 @@ const closePreviewBtn = document.getElementById("closePreviewBtn");
 
 const saveBtn = document.getElementById("saveTemplateBtn");
 
+const samplePanel = document.getElementById("samplePanel");
+const sampleSelect = document.getElementById("sampleSelect");
+const sampleApplyBtn = document.getElementById("sampleApplyBtn");
+const sampleHint = document.getElementById("sampleHint");
+const legacyKopNotice = document.getElementById("legacyKopNotice");
+const upgradeKopBtn = document.getElementById("upgradeKopBtn");
+
 const FIELD_TYPES = [
   { value: "text", label: "Text" },
   { value: "textarea", label: "Textarea" },
@@ -59,6 +67,7 @@ const FIELD_TYPES = [
 const templateId = new URLSearchParams(window.location.search).get("id");
 let fields = [];
 let fieldUidCounter = 0;
+let currentSeedKey = null; // diisi bila jenis dokumen baru dibuat dari contoh
 
 requireAuth((user, profile) => {
   if (!requireRole(profile.role, "admin")) return;
@@ -70,6 +79,7 @@ requireAuth((user, profile) => {
     loadExistingTemplate(templateId);
   } else {
     applyStarterTemplate();
+    setupSamples();
   }
 });
 
@@ -81,7 +91,88 @@ function applyStarterTemplate() {
   fields = STARTER_TEMPLATE.fields.map((f) => ({ options: "", ...f, uid: "f" + (fieldUidCounter++) }));
   renderFields();
   renderCanvasFromHtml();
+  updateLegacyNotice();
 }
+
+// Opsi field select disimpan sebagai array di database, tapi diedit sebagai teks "a, b, c".
+function optionsToText(opts) {
+  return Array.isArray(opts) ? opts.join(", ") : (opts || "");
+}
+
+// ---------- Mulai dari contoh (hanya saat membuat jenis dokumen baru) ----------
+
+async function setupSamples() {
+  samplePanel.style.display = "";
+  let existing = [];
+  try {
+    const snap = await getDocs(collection(db, "templates"));
+    existing = snap.docs.map((d) => d.data());
+  } catch (error) {
+    console.warn("Daftar jenis dokumen tidak terbaca:", error);
+  }
+  const exists = (seed) => existing.some(
+    (t) => t.seedKey === seed.seedKey || (t.name || "").trim().toLowerCase() === seed.name.toLowerCase()
+  );
+  sampleSelect.innerHTML = `<option value="">— Pilih contoh surat —</option>` +
+    DEFAULT_TEMPLATES.map((seed) =>
+      `<option value="${escapeAttr(seed.seedKey)}">${escapeAttr(seed.name)}${exists(seed) ? " (sudah pernah dibuat)" : ""}</option>`
+    ).join("");
+}
+
+sampleSelect.addEventListener("change", () => {
+  const seed = DEFAULT_TEMPLATES.find((x) => x.seedKey === sampleSelect.value);
+  sampleHint.textContent = seed ? `${seed.description} (${seed.fields.length} field, kode ${seed.numberCode})` : "";
+});
+
+sampleApplyBtn.addEventListener("click", () => {
+  const seed = DEFAULT_TEMPLATES.find((x) => x.seedKey === sampleSelect.value);
+  if (!seed) {
+    showFormError("Pilih salah satu contoh surat dulu.");
+    return;
+  }
+  if (tplName.value.trim() && !confirm("Isian yang sudah ada akan diganti dengan contoh ini. Lanjutkan?")) return;
+
+  clearFormError();
+  currentSeedKey = seed.seedKey;
+  tplName.value = seed.name;
+  tplCategory.value = seed.category || "";
+  tplDescription.value = seed.description || "";
+  tplNumberCode.value = seed.numberCode || "";
+  tplNumberFormat.value = seed.numberFormat || "";
+  updateNumberExample();
+  tplHtml.value = seed.html;
+  fields = seed.fields.map((f) => ({ ...f, options: optionsToText(f.options), uid: "f" + (fieldUidCounter++) }));
+  renderFields();
+  renderCanvasFromHtml();
+  updateLegacyNotice();
+  showToast(`Contoh "${seed.name}" dimuat. Ubah sesuai kebutuhan, lalu simpan.`, "success");
+  tplName.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+// ---------- Kop lama (diketik manual) -> kop surat resmi ----------
+
+// Pola kop lama: kotak ber-garis ganda yang berisi {{nama_instansi}} dan {{alamat_instansi}}.
+const LEGACY_KOP = /<div[^>]*border-bottom:\s*3px double[^>]*>[\s\S]*?\{\{\s*nama_instansi\s*\}\}[\s\S]*?<\/div>\s*<\/div>/;
+
+function updateLegacyNotice() {
+  legacyKopNotice.style.display = LEGACY_KOP.test(tplHtml.value || "") ? "" : "none";
+}
+
+upgradeKopBtn.addEventListener("click", () => {
+  syncCanvasToHtml();
+  if (!LEGACY_KOP.test(tplHtml.value)) {
+    updateLegacyNotice();
+    return;
+  }
+  tplHtml.value = tplHtml.value.replace(LEGACY_KOP, "{{kop_surat}}");
+  // Field instansi yang tak dipakai lagi di isi surat dihapus dari formulir
+  const used = (n) => new RegExp("\\{\\{\\s*" + n + "\\s*\\}\\}").test(tplHtml.value);
+  fields = fields.filter((f) => !(["nama_instansi", "alamat_instansi"].includes(f.name) && !used(f.name)));
+  renderFields();
+  renderCanvasFromHtml();
+  updateLegacyNotice();
+  showToast("Kop diganti. Atur logo & alamat di menu Kop, TTD & Cap, lalu simpan jenis dokumen ini.", "success");
+});
 
 logoutButtons.forEach((btn) => {
   btn.addEventListener("click", async () => {
@@ -109,9 +200,10 @@ async function loadExistingTemplate(id) {
     tplNumberFormat.value = data.numberFormat || "";
     updateNumberExample();
     tplHtml.value = data.html || "";
-    fields = (data.fields || []).map((f) => ({ ...f, uid: "f" + (fieldUidCounter++) }));
+    fields = (data.fields || []).map((f) => ({ ...f, options: optionsToText(f.options), uid: "f" + (fieldUidCounter++) }));
     renderFields();
     renderCanvasFromHtml();
+    updateLegacyNotice();
   } catch (error) {
     console.error("Gagal memuat template:", error);
     showFormError("Gagal memuat data jenis dokumen. Coba refresh halaman.");
@@ -205,8 +297,10 @@ fieldsList.addEventListener("click", (e) => {
   renderFields();
 });
 
-// Penanda posisi bawaan sistem (bukan isian): gambar dipasang admin saat dokumen terbit.
+// Penanda posisi bawaan sistem (bukan isian). Kop surat diambil dari menu Kop, TTD & Cap;
+// gambar tanda tangan & cap dipasang admin saat dokumen terbit.
 const SYSTEM_CHIPS = [
+  { name: "kop_surat", label: "Kop surat (logo & instansi)" },
   { name: "ttd_gambar", label: "Posisi tanda tangan" },
   { name: "cap_gambar", label: "Posisi cap" }
 ];
@@ -219,7 +313,7 @@ function renderPlaceholderChips() {
         `<button type="button" class="chip" data-name="${escapeAttr(f.name)}">+ ${escapeAttr(f.label || f.name)}</button>`
       ).join("");
   const systemChips = SYSTEM_CHIPS.map((c) =>
-    `<button type="button" class="chip" data-name="${c.name}" title="Dipasang saat dokumen diterbitkan (atur di menu Tanda Tangan &amp; Cap)">+ ${c.label}</button>`
+    `<button type="button" class="chip" data-name="${c.name}" title="${c.name === "kop_surat" ? "Logo, nama, dan alamat instansi (atur di menu Kop, TTD &amp; Cap)" : "Dipasang saat dokumen diterbitkan (atur di menu Kop, TTD &amp; Cap)"}">+ ${c.label}</button>`
   ).join("");
   placeholderChips.innerHTML = fieldChips + systemChips;
 }
@@ -228,13 +322,17 @@ placeholderChips.addEventListener("click", (e) => {
   const chip = e.target.closest(".chip");
   if (!chip) return;
   const name = chip.dataset.name;
-  const f = fields.find((x) => x.name === name);
-  const sys = SYSTEM_CHIPS.find((c) => c.name === name);
-  const label = f ? (f.label || f.name) : (sys ? sys.label : name);
-  insertFieldChipAtCursor(name, label);
+  insertFieldChipAtCursor(name, chipLabel(name));
 });
 
 // ---------- Sinkronisasi kanvas visual <-> tplHtml (sumber data asli) ----------
+
+function chipLabel(name) {
+  const f = fields.find((x) => x.name === name);
+  if (f) return f.label || f.name;
+  const sys = SYSTEM_CHIPS.find((c) => c.name === name);
+  return sys ? sys.label : name;
+}
 
 function insertFieldChipAtCursor(name, label) {
   tplCanvas.focus();
@@ -266,21 +364,19 @@ function syncCanvasToHtml() {
 function renderCanvasFromHtml() {
   const html = tplHtml.value || "";
   tplCanvas.innerHTML = html.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, name) => {
-    const f = fields.find((x) => x.name === name);
-    const label = f ? (f.label || f.name) : name;
+    const label = chipLabel(name);
     return `<span class="field-chip" contenteditable="false" data-field="${name}">${escapeAttr(label)}</span>`;
   });
 }
 
 function syncChipLabels() {
   tplCanvas.querySelectorAll(".field-chip").forEach((chip) => {
-    const f = fields.find((x) => x.name === chip.dataset.field);
-    if (f) chip.textContent = f.label || f.name;
+    chip.textContent = chipLabel(chip.dataset.field);
   });
   syncCanvasToHtml();
 }
 
-tplCanvas.addEventListener("input", syncCanvasToHtml);
+tplCanvas.addEventListener("input", () => { syncCanvasToHtml(); updateLegacyNotice(); });
 
 document.querySelectorAll(".editor-toolbar button[data-cmd]").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -292,12 +388,27 @@ document.querySelectorAll(".editor-toolbar button[data-cmd]").forEach((btn) => {
 
 // ---------- Preview & Simpan (tidak berubah, tetap pakai tplHtml.value) ----------
 
-previewBtn.addEventListener("click", () => {
+let letterheadCache;
+async function getLetterhead() {
+  if (letterheadCache !== undefined) return letterheadCache;
+  try {
+    const snap = await getDoc(doc(db, "settings", "letterhead"));
+    letterheadCache = snap.exists() ? snap.data() : null;
+  } catch (error) {
+    console.warn("Kop surat tidak terbaca:", error);
+    letterheadCache = null;
+  }
+  return letterheadCache;
+}
+
+previewBtn.addEventListener("click", async () => {
+  const kop = await getLetterhead();
   const sampleData = {};
   fields.forEach((f) => {
     if (f.name) sampleData[f.name] = `[Contoh: ${f.label || f.name}]`;
   });
-  previewContent.innerHTML = renderTemplate(tplHtml.value, sampleData) || "<p style='color:#999;'>Isi surat masih kosong.</p>";
+  previewContent.innerHTML = applyLetterhead(renderTemplate(tplHtml.value, sampleData), kop, { placeholder: true })
+    || "<p style='color:#999;'>Isi surat masih kosong.</p>";
   previewOverlay.classList.add("show");
 });
 closePreviewBtn.addEventListener("click", () => previewOverlay.classList.remove("show"));
@@ -360,6 +471,7 @@ saveBtn.addEventListener("click", async () => {
     })),
     updatedAt: serverTimestamp()
   };
+  if (!templateId && currentSeedKey) payload.seedKey = currentSeedKey;
 
   try {
     if (templateId) {

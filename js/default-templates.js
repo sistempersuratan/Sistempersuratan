@@ -1,14 +1,14 @@
 // ===========================================================
 // default-templates.js — Template surat bawaan.
-// Dipakai halaman Kelola Template (tombol "Impor Template Contoh").
+// Dipakai Editor Jenis Dokumen (pilihan "Mulai dari contoh" saat membuat jenis dokumen baru).
 // Format data SAMA dengan yang disimpan Template Editor, jadi setelah
-// diimpor, template bisa diedit/dinonaktifkan seperti template biasa.
+// dimuat ke editor, bisa diubah bebas sebelum disimpan.
 //
 // Catatan:
 // - {{nomor_surat}} diisi otomatis oleh sistem saat surat dirilis.
 // - Semua field yang dipakai di HTML dibuat wajib diisi (required),
 //   supaya tidak ada {{placeholder}} kosong yang tampil di surat.
-// - seedKey = penanda unik agar impor ulang tidak membuat template ganda.
+// - seedKey = penanda unik contoh (disimpan di jenis dokumen yang dibuat darinya).
 // ===========================================================
 
 // ---------- Potongan HTML yang dipakai berulang ----------
@@ -16,10 +16,8 @@
 const WRAP_OPEN = `<div style="font-family:'Times New Roman',Times,serif; font-size:12pt; line-height:1.5; color:#000;">`;
 const WRAP_CLOSE = `</div>`;
 
-const KOP = `<div style="text-align:center; border-bottom:3px double #000; padding-bottom:8px; margin-bottom:18px;">
-<div style="font-size:16pt; font-weight:bold; text-transform:uppercase;">{{nama_instansi}}</div>
-<div style="font-size:11pt;">{{alamat_instansi}}</div>
-</div>`;
+// Kop surat (logo, nama instansi, alamat) diambil dari menu "Kop, TTD & Cap" saat dokumen ditampilkan.
+const KOP = `{{kop_surat}}`;
 
 const judul = (teks, tampilNomor = true) => `<div style="text-align:center; margin-bottom:16px;">
 <strong><u>${teks}</u></strong>${tampilNomor ? `<br>Nomor: {{nomor_surat}}` : ""}
@@ -46,10 +44,8 @@ const isiBebas = (nama) => `<div style="white-space:pre-line; text-align:justify
 
 const f = (name, label, type = "text", extra = {}) => ({ name, label, type, required: true, ...extra });
 
-const FIELDS_INSTANSI = [
-  f("nama_instansi", "Nama Instansi / Lembaga"),
-  f("alamat_instansi", "Alamat Instansi (kop surat)")
-];
+// Nama & alamat instansi tidak lagi diisi per dokumen: sudah ada di kop surat resmi.
+const FIELDS_INSTANSI = [];
 
 const FIELDS_TTD = [
   f("kota", "Kota Penerbitan"),

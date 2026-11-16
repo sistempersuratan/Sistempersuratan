@@ -5,7 +5,7 @@
 
 import { requireAuth, logout } from "./auth.js";
 import { showToast, setButtonLoading } from "./ui.js";
-import { renderTemplate, markNumberPlaceholder } from "./template-engine.js";
+import { renderTemplate, markNumberPlaceholder, applyLetterhead } from "./template-engine.js";
 
 // {{nomor_surat}} diisi sistem saat rilis, jadi field bernama itu tidak ditampilkan di form
 // (menjaga template lama yang masih punya field tersebut tetap aman).
@@ -49,6 +49,11 @@ let templatesCache = [];
 let currentUser = null;
 let currentProfile = null;
 let selectedTemplate = null;
+let letterhead = null; // kop surat & logo dari pengaturan admin (settings/letterhead)
+
+// Isi {{kop_surat}} dan tandai nomor/TTD/cap untuk tampilan dokumen yang belum terbit.
+// Yang DISIMPAN ke database tetap berisi penanda {{kop_surat}}, jadi kop selalu mengikuti pengaturan terbaru.
+const showable = (html) => markNumberPlaceholder(applyLetterhead(html, letterhead, { placeholder: true }));
 
 requireAuth((user, profile) => {
   currentUser = user;
@@ -70,6 +75,7 @@ requireAuth((user, profile) => {
     adminOnlyLinks.forEach((el) => (el.style.display = ""));
   }
 
+  loadLetterhead();
   loadTemplates();
 });
 
@@ -83,6 +89,15 @@ logoutButtons.forEach((btn) => {
     }
   });
 });
+
+async function loadLetterhead() {
+  try {
+    const snap = await getDoc(doc(db, "settings", "letterhead"));
+    letterhead = snap.exists() ? snap.data() : null;
+  } catch (error) {
+    console.warn("Kop surat tidak terbaca:", error);
+  }
+}
 
 async function loadTemplates() {
   try {
@@ -243,7 +258,7 @@ previewBtn.addEventListener("click", () => {
   if (!validateForm(data)) return;
 
   const html = renderTemplate(selectedTemplate.html, data);
-  previewArea.innerHTML = markNumberPlaceholder(html);
+  previewArea.innerHTML = showable(html);
   previewPanel.style.display = "block";
   previewPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -290,7 +305,7 @@ saveBtn.addEventListener("click", async () => {
     });
 
     showToast("Dokumen berhasil disimpan.", "success");
-    previewArea.innerHTML = markNumberPlaceholder(renderedHtml);
+    previewArea.innerHTML = showable(renderedHtml);
     previewPanel.style.display = "block";
   } catch (error) {
     console.error("Gagal menyimpan dokumen:", error);

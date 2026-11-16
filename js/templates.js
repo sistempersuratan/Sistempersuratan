@@ -3,14 +3,12 @@
 // ===========================================================
 
 import { requireAuth, requireRole, logout } from "./auth.js";
-import { showToast, setButtonLoading } from "./ui.js";
+import { showToast } from "./ui.js";
 import { openRowMenu, makeRowsClickable } from "./row-menu.js";
-import { DEFAULT_TEMPLATES } from "./default-templates.js";
 import { db } from "./firebase-config.js";
 import {
   collection,
   getDocs,
-  addDoc,
   doc,
   deleteDoc,
   updateDoc,
@@ -119,89 +117,3 @@ async function deleteTemplate(tpl) {
     showToast("Gagal menghapus jenis dokumen. Coba lagi.", "error");
   }
 }
-
-
-// ===========================================================
-// Impor template contoh (dari js/default-templates.js)
-// ===========================================================
-
-const importOverlay = document.getElementById("importOverlay");
-const importList = document.getElementById("importList");
-const importSelectAll = document.getElementById("importSelectAll");
-const importConfirmBtn = document.getElementById("importConfirmBtn");
-
-// Template dianggap sudah ada jika seedKey-nya sama, atau (untuk jaga-jaga) namanya sama.
-function isAlreadyImported(seed) {
-  return templatesCache.some(
-    (t) => t.seedKey === seed.seedKey || (t.name || "").trim().toLowerCase() === seed.name.toLowerCase()
-  );
-}
-
-function openImportDialog() {
-  importList.innerHTML = DEFAULT_TEMPLATES.map((seed) => {
-    const exists = isAlreadyImported(seed);
-    return `
-      <label style="display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid #eee; ${exists ? "opacity:.55;" : ""}">
-        <input type="checkbox" class="import-check" value="${seed.seedKey}" ${exists ? "disabled" : "checked"} style="margin-top:4px;">
-        <span>
-          <strong>${escapeHtml(seed.name)}</strong>
-          ${exists ? ' <span class="badge inactive">Sudah ada</span>' : ""}
-          <br><span style="font-size:13px; color:#666;">${escapeHtml(seed.description)} (${seed.fields.length} field, kode ${escapeHtml(seed.numberCode)})</span>
-        </span>
-      </label>`;
-  }).join("");
-  importSelectAll.checked = !importList.querySelector(".import-check:not(:checked):not(:disabled)");
-  importOverlay.style.display = "flex";
-}
-
-function closeImportDialog() {
-  importOverlay.style.display = "none";
-}
-
-document.getElementById("openImportBtn").addEventListener("click", async () => {
-  // pastikan daftar template terbaru sebelum cek duplikat
-  await loadTemplates();
-  openImportDialog();
-});
-document.getElementById("importCancelBtn").addEventListener("click", closeImportDialog);
-importOverlay.addEventListener("click", (e) => {
-  if (e.target === importOverlay) closeImportDialog();
-});
-
-importSelectAll.addEventListener("change", () => {
-  importList.querySelectorAll(".import-check:not(:disabled)").forEach((c) => (c.checked = importSelectAll.checked));
-});
-
-importConfirmBtn.addEventListener("click", async () => {
-  const keys = [...importList.querySelectorAll(".import-check:checked")].map((c) => c.value);
-  if (keys.length === 0) {
-    showToast("Pilih minimal satu jenis dokumen.", "error");
-    return;
-  }
-
-  setButtonLoading(importConfirmBtn, true, "Impor", "Mengimpor...");
-  let ok = 0;
-  let failed = 0;
-  for (const key of keys) {
-    const seed = DEFAULT_TEMPLATES.find((s) => s.seedKey === key);
-    if (!seed) continue;
-    try {
-      await addDoc(collection(db, "templates"), {
-        ...seed,
-        active: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      ok++;
-    } catch (error) {
-      console.error(`Gagal impor template ${key}:`, error);
-      failed++;
-    }
-  }
-  setButtonLoading(importConfirmBtn, false, "Impor", "Mengimpor...");
-
-  closeImportDialog();
-  if (ok > 0) showToast(`${ok} jenis dokumen berhasil diimpor.`, "success");
-  if (failed > 0) showToast(`${failed} jenis dokumen gagal diimpor. Coba lagi.`, "error");
-  loadTemplates();
-});

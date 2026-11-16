@@ -37,7 +37,7 @@ const ITEMS = [
   { key: "create", label: "Buat Dokumen", short: "Buat", icon: "create", href: "pages/create-document.html" },
   { key: "documents", label: "Arsip Dokumen", short: "Arsip", icon: "documents", href: "pages/documents.html" },
   { key: "types", label: "Jenis Dokumen", short: "Jenis", icon: "types", href: "pages/templates.html", admin: true },
-  { key: "finishing", label: "Tanda Tangan & Cap", short: "TTD/Cap", icon: "finishing", href: "pages/finishing.html", admin: true },
+  { key: "finishing", label: "Kop, TTD & Cap", short: "Kop/TTD", icon: "finishing", href: "pages/finishing.html", admin: true },
   { key: "users", label: "Kelola User", short: "User", icon: "users", href: "pages/users.html", admin: true, noBottom: true },
   { key: "profile", label: "Profil", short: "Profil", icon: "profile", href: "pages/profile.html" }
 ];

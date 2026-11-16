@@ -1,12 +1,12 @@
 // ===========================================================
 // dashboard-view.js — Tampilan dashboard (dipakai dashboard.html & admin.html)
 //
-// Isi dashboard, berurutan dari yang paling penting:
-//   1. Akses cepat (aksi utama: Buat Dokumen Baru)
-//   2. Alur pekerjaan: Pilih jenis -> Isi data -> Diperiksa -> Terbit
+// Isi dashboard (sengaja ringkas; menu sudah ada di sidebar kiri):
+//   1. Alur pekerjaan: Pilih jenis -> Isi data -> Diperiksa -> Terbit
 //      (sekaligus statistik; tiap tahap bisa diklik ke daftar terfilter)
-//   3. Perlu tindakan (admin: menunggu persetujuan; user: ditolak/draft)
-//   4. Aktivitas terbaru (8 dokumen terakhir: dibuat/diperbarui/diterbitkan)
+//   2. Satu daftar yang paling relevan:
+//      - "Perlu tindakan" bila ada (admin: menunggu persetujuan; user: ditolak/draft)
+//      - jika tidak ada, "Aktivitas terbaru"
 //
 // Hemat baca data: admin memakai query hitung + limit, bukan memuat semua dokumen.
 // ===========================================================
@@ -23,14 +23,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const docsRef = () => collection(db, "documents");
-
-const ICON = (path) =>
-  `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
-const I_PLUS = ICON('<path d="M12 5v14M5 12h14"/>');
-const I_FOLDER = ICON('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
-const I_LAYERS = ICON('<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>');
-const I_USERS = ICON('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/>');
-const I_PEN = ICON('<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/>');
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -150,16 +142,6 @@ export async function renderDashboard(root, { role, uid }) {
     return;
   }
 
-  const actions = `
-    <div class="dash-actions">
-      <a class="btn btn-primary btn-act" href="pages/create-document.html">${I_PLUS}<span>Buat Dokumen Baru</span></a>
-      <a class="btn btn-act" href="pages/documents.html">${I_FOLDER}<span>Arsip Dokumen</span></a>
-      ${isAdmin ? `
-        <a class="btn btn-act" href="pages/templates.html">${I_LAYERS}<span>Jenis Dokumen</span></a>
-        <a class="btn btn-act" href="pages/finishing.html">${I_PEN}<span>Tanda Tangan &amp; Cap</span></a>
-        <a class="btn btn-act" href="pages/users.html">${I_USERS}<span>Kelola User</span></a>` : ""}
-    </div>`;
-
   const step2Attn = !isAdmin && data.revision > 0;
   const flow = `
     <section class="flow" aria-label="Alur pekerjaan">
@@ -185,26 +167,25 @@ export async function renderDashboard(root, { role, uid }) {
       </a>
     </section>`;
 
-  const actionRows = data.actionItems.map((d) =>
-    rowHtml(d, { showOwner: isAdmin, note: !isAdmin && d.rejectionReason ? `Ditolak: ${d.rejectionReason}` : (!isAdmin ? "Draft belum diajukan" : "") })
+  // Hanya SATU daftar: yang perlu ditindak kalau ada, kalau tidak, aktivitas terbaru.
+  const hasActions = data.actionItems.length > 0;
+  const items = (hasActions ? data.actionItems : data.recent).slice(0, 5);
+  const rows = items.map((d) =>
+    hasActions
+      ? rowHtml(d, { showOwner: isAdmin, note: !isAdmin && d.rejectionReason ? `Ditolak: ${d.rejectionReason}` : (!isAdmin ? "Draft belum diajukan" : "") })
+      : rowHtml(d, { showOwner: isAdmin, note: "" })
   ).join("");
-  const actionPanel = data.actionItems.length === 0 ? "" : `
+
+  const listPanel = `
     <section class="panel">
-      <div class="panel-title"><h3>${isAdmin ? "Menunggu persetujuan" : "Perlu tindakan Anda"}</h3>
-        <a href="pages/documents.html?status=${isAdmin ? "pending" : "draft"}">Lihat semua</a></div>
-      <ul class="act-list">${actionRows}</ul>
+      <div class="panel-title">
+        <h3>${hasActions ? (isAdmin ? "Menunggu persetujuan" : "Perlu tindakan Anda") : "Aktivitas terbaru"}</h3>
+        <a href="pages/documents.html${hasActions ? `?status=${isAdmin ? "pending" : "draft"}` : ""}">${hasActions ? "Lihat semua" : "Arsip"}</a>
+      </div>
+      ${items.length === 0
+        ? `<div class="empty-state" style="padding:24px 8px;"><p>Belum ada dokumen. Mulai dari menu <strong>Buat Dokumen</strong>.</p></div>`
+        : `<ul class="act-list">${rows}</ul>`}
     </section>`;
 
-  const recentPanel = `
-    <section class="panel">
-      <div class="panel-title"><h3>Aktivitas terbaru</h3><a href="pages/documents.html">Arsip</a></div>
-      ${data.recent.length === 0
-        ? `<div class="empty-state" style="padding:24px 8px;"><p>Belum ada dokumen. Mulai dengan <strong>Buat Dokumen Baru</strong>.</p></div>`
-        : `<ul class="act-list">${data.recent.map((d) => rowHtml(d, { showOwner: isAdmin, note: "" })).join("")}</ul>`}
-    </section>`;
-
-  root.innerHTML = `
-    ${actions}
-    ${flow}
-    <div class="dash-cols ${actionPanel ? "" : "single"}">${actionPanel}${recentPanel}</div>`;
+  root.innerHTML = `${flow}<div style="margin-top:20px;">${listPanel}</div>`;
 }

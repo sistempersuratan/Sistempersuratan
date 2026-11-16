@@ -1,5 +1,6 @@
 // ===========================================================
 // finishing.js — Halaman pages/finishing.html (khusus admin)
+// - Kop surat & logo (settings/letterhead, dibaca semua pengguna, ditulis admin)
 // - Kelola aset tanda tangan & cap (koleksi signingAssets, tak bisa diganti, hanya dicabut)
 // - Pilih aset yang dipakai (settings/finishing)
 // - Default kelengkapan per jenis dokumen (templates.finishingDefault / finishingChoice)
@@ -10,7 +11,7 @@
 import { requireAuth, requireRole, logout } from "./auth.js";
 import { showToast, setButtonLoading } from "./ui.js";
 import { db } from "./firebase-config.js";
-import { isSafeImageDataUrl } from "./template-engine.js";
+import { isSafeImageDataUrl, buildLetterheadHtml, isLetterheadConfigured } from "./template-engine.js";
 import {
   collection,
   doc,
@@ -56,6 +57,7 @@ requireAuth((user, profile) => {
   userName.textContent = currentUsername;
   userInitial.textContent = currentUsername.charAt(0).toUpperCase();
   loadAll();
+  loadLetterhead();
 });
 
 logoutButtons.forEach((btn) => {
@@ -69,6 +71,100 @@ function esc(s) {
 }
 function showError(msg) { assetError.textContent = msg; assetError.classList.add("show"); }
 function clearError() { assetError.textContent = ""; assetError.classList.remove("show"); }
+
+// ---------- Kop surat & logo ----------
+
+const kopName = document.getElementById("kopName");
+const kopAddress = document.getElementById("kopAddress");
+const kopContact = document.getElementById("kopContact");
+const kopLogoFile = document.getElementById("kopLogoFile");
+const kopLogoRemove = document.getElementById("kopLogoRemove");
+const kopPreview = document.getElementById("kopPreview");
+const kopSaveBtn = document.getElementById("kopSaveBtn");
+const kopError = document.getElementById("kopError");
+let kopLogo = ""; // data URL logo saat ini ("" = tanpa logo)
+
+function kopValues() {
+  return { name: kopName.value, address: kopAddress.value, contact: kopContact.value, logo: kopLogo };
+}
+
+function renderKopPreview() {
+  const cfg = kopValues();
+  kopPreview.innerHTML = isLetterheadConfigured(cfg)
+    ? buildLetterheadHtml(cfg)
+    : `<span class="muted">Belum diatur. Isi nama instansi (dan logo) di atas.</span>`;
+  kopLogoRemove.style.display = kopLogo ? "" : "none";
+}
+
+[kopName, kopAddress, kopContact].forEach((el) => el.addEventListener("input", renderKopPreview));
+
+kopLogoFile.addEventListener("change", async () => {
+  kopError.classList.remove("show");
+  const file = kopLogoFile.files[0];
+  if (!file) return;
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+    kopError.textContent = "Format logo harus PNG, JPG, atau WebP.";
+    kopError.classList.add("show");
+    kopLogoFile.value = "";
+    return;
+  }
+  try {
+    kopLogo = await shrinkImage(file);
+    renderKopPreview();
+  } catch (e) {
+    kopError.textContent = e.message || "Logo tidak dapat diproses.";
+    kopError.classList.add("show");
+    kopLogoFile.value = "";
+  }
+});
+
+kopLogoRemove.addEventListener("click", () => {
+  kopLogo = "";
+  kopLogoFile.value = "";
+  renderKopPreview();
+});
+
+async function loadLetterhead() {
+  try {
+    const snap = await getDoc(doc(db, "settings", "letterhead"));
+    const d = snap.exists() ? snap.data() : {};
+    kopName.value = d.name || "";
+    kopAddress.value = d.address || "";
+    kopContact.value = d.contact || "";
+    kopLogo = isSafeImageDataUrl(d.logo) ? d.logo : "";
+  } catch (error) {
+    console.error("Gagal memuat kop surat:", error);
+    showToast("Kop surat tidak dapat dimuat. Coba refresh halaman.", "error");
+  }
+  renderKopPreview();
+}
+
+kopSaveBtn.addEventListener("click", async () => {
+  kopError.classList.remove("show");
+  const v = kopValues();
+  if (!v.name.trim()) {
+    kopError.textContent = "Nama instansi wajib diisi.";
+    kopError.classList.add("show");
+    return;
+  }
+  setButtonLoading(kopSaveBtn, true, "Simpan Kop Surat");
+  try {
+    await setDoc(doc(db, "settings", "letterhead"), {
+      name: v.name.trim(),
+      address: v.address.trim(),
+      contact: v.contact.trim(),
+      logo: v.logo,
+      updatedAt: serverTimestamp(),
+      updatedBy: currentUsername
+    });
+    showToast("Kop surat disimpan.", "success");
+  } catch (error) {
+    console.error("Gagal simpan kop surat:", error);
+    showToast("Gagal menyimpan kop surat. Coba lagi.", "error");
+  } finally {
+    setButtonLoading(kopSaveBtn, false, "Simpan Kop Surat");
+  }
+});
 
 // ---------- Form tambah aset ----------
 

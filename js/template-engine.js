@@ -149,3 +149,49 @@ export function markNumberPlaceholder(html) {
     .replace(CAP_TOKEN, () => box("Cap", 0))
     .replace(TTD_TOKEN, () => box("Tanda tangan", 70));
 }
+
+// ===========================================================
+// Kop surat (logo + nama instansi + alamat)
+// Diatur admin di menu "Kop, TTD & Cap" (settings/letterhead), dibaca semua
+// pengguna. Template menandai posisinya dengan {{kop_surat}}. Seperti nomor
+// surat, penanda ini diganti saat dokumen DITAMPILKAN, jadi dokumen draft
+// selalu memakai kop terbaru; dokumen terbit menyimpan hasil akhirnya.
+// ===========================================================
+const KOP_TOKEN = /\{\{\s*kop_surat\s*\}\}/g;
+
+export function hasLetterheadToken(html) {
+  return /\{\{\s*kop_surat\s*\}\}/.test(html || "");
+}
+
+export function isLetterheadConfigured(cfg) {
+  return !!(cfg && (String(cfg.name || "").trim() || isSafeImageDataUrl(cfg.logo)));
+}
+
+/** Susun HTML kop surat dari pengaturan { name, address, contact, logo }. */
+export function buildLetterheadHtml(cfg) {
+  if (!isLetterheadConfigured(cfg)) return "";
+  const logo = isSafeImageDataUrl(cfg.logo)
+    ? `<img alt="Logo" src="${cfg.logo}" style="max-height:80px; max-width:96px;">` : "";
+  const line = (text, style) => (String(text || "").trim()
+    ? `<div style="${style}">${escapeHtml(String(text).trim())}</div>` : "");
+  // Kolom logo & kolom kosong selebar sama, supaya teks tetap tepat di tengah halaman.
+  return `<table style="width:100%; border-collapse:collapse; border-bottom:3px double #000; margin-bottom:18px;"><tr>`
+    + `<td style="width:100px; padding:0 0 8px 0; vertical-align:middle; text-align:left;">${logo}</td>`
+    + `<td style="padding:0 0 8px 0; vertical-align:middle; text-align:center; line-height:1.35;">`
+    + line(cfg.name, "font-size:16pt; font-weight:bold; text-transform:uppercase;")
+    + line(cfg.address, "font-size:11pt; white-space:pre-line;")
+    + line(cfg.contact, "font-size:10pt;")
+    + `</td><td style="width:100px;"></td></tr></table>`;
+}
+
+/**
+ * Ganti {{kop_surat}} dengan kop surat.
+ * placeholder:true -> bila kop belum diatur, tampilkan petunjuk (untuk pratinjau/draft).
+ */
+export function applyLetterhead(html, cfg, { placeholder = false } = {}) {
+  const kop = buildLetterheadHtml(cfg)
+    || (placeholder
+      ? '<div style="border:1px dashed #aaa; color:#888; font-size:10pt; padding:10px; text-align:center; margin-bottom:18px;">[Kop surat belum diatur admin]</div>'
+      : "");
+  return (html || "").replace(KOP_TOKEN, () => kop);
+}

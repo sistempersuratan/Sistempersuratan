@@ -17,6 +17,9 @@ import {
   buildDocumentNumber,
   fillNumberPlaceholder,
   markNumberPlaceholder,
+  applyLetterhead,
+  hasLetterheadToken,
+  isLetterheadConfigured,
   DEFAULT_NUMBER_FORMAT
 } from "./template-engine.js";
 import {
@@ -106,6 +109,18 @@ logoutButtons.forEach((btn) => {
   });
 });
 
+// Kop surat & logo (settings/letterhead). Dipakai untuk mengisi {{kop_surat}} saat tampil.
+let letterhead = null;
+async function readLetterhead() {
+  try {
+    const snap = await getDoc(doc(db, "settings", "letterhead"));
+    return snap.exists() ? snap.data() : null;
+  } catch (error) {
+    console.warn("Kop surat tidak terbaca:", error);
+    return null;
+  }
+}
+
 async function loadDocuments() {
   try {
     let snap;
@@ -115,6 +130,7 @@ async function loadDocuments() {
       const q = query(collection(db, "documents"), where("userId", "==", currentUser.uid));
       snap = await getDocs(q);
     }
+    letterhead = await readLetterhead();
     documentsCache = snap.docs.map((d) => {
       const data = d.data();
       return { id: d.id, ...data, rawHtml: data.renderedHtml || "", renderedHtml: sanitizeHtml(prepareHtmlForDisplay(data)) };
@@ -144,10 +160,10 @@ function applyUrlParams() {
 // Dokumen rilis: isi {{nomor_surat}} dengan nomor resmi (juga untuk dokumen lama).
 // Belum rilis: tampilkan petunjuk bahwa nomor diberikan saat rilis.
 function prepareHtmlForDisplay(data) {
-  const html = data.renderedHtml || "";
-  return data.status === "released" && data.documentNumber
-    ? fillNumberPlaceholder(html, data.documentNumber)
-    : markNumberPlaceholder(html);
+  const isReleased = data.status === "released" && data.documentNumber;
+  // {{kop_surat}} diganti kop terbaru; dokumen terbit sudah membawa kopnya sendiri (dibekukan saat rilis).
+  const html = applyLetterhead(data.renderedHtml || "", letterhead, { placeholder: !isReleased });
+  return isReleased ? fillNumberPlaceholder(html, data.documentNumber) : markNumberPlaceholder(html);
 }
 
 function statusInfo(status) {
@@ -478,12 +494,17 @@ async function openReleaseDialog(target) {
       console.warn("Jenis dokumen tidak terbaca:", e);
     }
 
+    rel.letterhead = await readLetterhead();
+    rel.kopMissing = !isLetterheadConfigured(rel.letterhead);
+
     if (rel.template && rel.template.html) {
-      rel.baseHtml = sanitizeHtml(renderTemplate(rel.template.html, target.data || {}));
+      rel.usesKop = hasLetterheadToken(rel.template.html);
+      rel.baseHtml = sanitizeHtml(applyLetterhead(renderTemplate(rel.template.html, target.data || {}), rel.letterhead));
       rel.rerendered = true;
       rel.tokens = hasFinishingTokens(rel.template.html);
     } else {
-      rel.baseHtml = sanitizeHtml(target.rawHtml || "");
+      rel.usesKop = hasLetterheadToken(target.rawHtml);
+      rel.baseHtml = sanitizeHtml(applyLetterhead(target.rawHtml || "", rel.letterhead));
     }
 
     try {
@@ -550,11 +571,12 @@ function renderReleaseDialog() {
   const warns = [];
   if (!rel.template) warns.push("Jenis dokumen sudah dihapus. Dokumen diterbitkan sesuai isi tersimpan, tanpa TTD/cap.");
   else if (!rel.tokens.signature && !rel.tokens.stamp) warns.push("Jenis dokumen ini belum punya penanda posisi TTD/cap. Tambahkan <code>{{ttd_gambar}}</code> dan <code>{{cap_gambar}}</code> di Editor Jenis Dokumen.");
-  else if (!rel.signature && !rel.stamp) warns.push("Belum ada tanda tangan/cap yang dipakai. Atur di menu Tanda Tangan &amp; Cap.");
+  else if (!rel.signature && !rel.stamp) warns.push("Belum ada tanda tangan/cap yang dipakai. Atur di menu Kop, TTD &amp; Cap.");
   else if (rel.mode === "complete" && (!rel.signature || !rel.stamp)) warns.push(`${!rel.signature ? "Tanda tangan" : "Cap"} belum diatur, jadi tidak dipasang.`);
   if (rel.target.finishing && requested && rel.template && rel.template.finishingChoice === "user") {
     warns.push(`Pengguna meminta: ${requested === "complete" ? "Lengkap" : "Tanpa TTD/cap"}.`);
   }
+  if (rel.usesKop && rel.kopMissing) warns.push("Kop surat belum diatur, jadi dokumen terbit tanpa kop. Atur di menu Kop, TTD &amp; Cap.");
   if (rel.rerendered) warns.push("Isi dirender ulang dari data isian dan jenis dokumen saat ini.");
 
   let html = warns.map((w) => `<div class="field-hint">• ${w}</div>`).join("");
