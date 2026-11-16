@@ -25,10 +25,14 @@ const judul = (teks, tampilNomor = true) => `<div style="text-align:center; marg
 <strong><u>${teks}</u></strong>${tampilNomor ? `<br>Nomor: {{nomor_surat}}` : ""}
 </div>`;
 
+// Kotak berukuran tetap: tanda tangan & cap dipasang di sini hanya saat dokumen diterbitkan
+// (admin memilih lengkap / tanpa TTD-cap). Pada mode tanpa TTD/cap ruangnya tetap ada.
+const RUANG_TTD = `<div style="position:relative; height:80px;">{{cap_gambar}}{{ttd_gambar}}</div>`;
+
 const TTD = `<div style="margin-top:36px; margin-left:55%;">
 <div>{{kota}}, {{tanggal_surat}}</div>
 <div>{{jabatan_penandatangan}},</div>
-<div style="height:70px;"></div>
+${RUANG_TTD}
 <div><strong><u>{{nama_penandatangan}}</u></strong></div>
 </div>`;
 

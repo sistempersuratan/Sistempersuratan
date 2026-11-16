@@ -107,9 +107,45 @@ export function fillNumberPlaceholder(html, number) {
 }
 
 /** Tampilkan petunjuk sementara untuk {{nomor_surat}} pada dokumen yang belum dirilis. */
+// ---------- Posisi tanda tangan & cap ----------
+// Template menandai posisinya dengan {{ttd_gambar}} dan {{cap_gambar}}
+// (biasanya di dalam satu kotak berukuran tetap, supaya ruangnya tetap ada
+// walau gambarnya tidak dipasang). Gambar asli HANYA dipasang saat admin
+// menerbitkan dokumen (lihat applyFinishing).
+const TTD_TOKEN = /\{\{\s*ttd_gambar\s*\}\}/g;
+const CAP_TOKEN = /\{\{\s*cap_gambar\s*\}\}/g;
+
+export function hasFinishingTokens(html) {
+  const h = html || "";
+  return { signature: /\{\{\s*ttd_gambar\s*\}\}/.test(h), stamp: /\{\{\s*cap_gambar\s*\}\}/.test(h) };
+}
+
+// Hanya data URL gambar biasa yang boleh dipasang (bukan svg / skema lain).
+export function isSafeImageDataUrl(url) {
+  return typeof url === "string" && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(url);
+}
+
+/**
+ * Pasang (atau kosongkan) tanda tangan & cap pada HTML dokumen.
+ * mode "complete": ganti penanda dengan gambar. mode "plain": penanda dikosongkan,
+ * ruang kotaknya tetap sehingga layout dan tanda tangan basah tetap rapi.
+ */
+export function applyFinishing(html, { mode, signatureSrc, stampSrc } = {}) {
+  const complete = mode === "complete";
+  const sig = complete && isSafeImageDataUrl(signatureSrc)
+    ? `<img alt="Tanda tangan" src="${signatureSrc}" style="position:absolute; left:26px; top:4px; height:68px;">` : "";
+  const stamp = complete && isSafeImageDataUrl(stampSrc)
+    ? `<img alt="Cap" src="${stampSrc}" style="position:absolute; left:-6px; top:-4px; height:84px; opacity:.88;">` : "";
+  return (html || "").replace(CAP_TOKEN, () => stamp).replace(TTD_TOKEN, () => sig);
+}
+
+// Untuk tampilan dokumen yang BELUM terbit (draft/pending, pratinjau):
+// nomor & posisi TTD/cap hanya ditandai, tanpa gambar asli.
 export function markNumberPlaceholder(html) {
-  return (html || "").replace(
-    NUMBER_PLACEHOLDER,
-    '<span style="background:#fff3cd; padding:0 4px;">[nomor diberikan saat rilis]</span>'
-  );
+  const box = (label, left) =>
+    `<span style="position:absolute; left:${left}px; top:8px; border:1px dashed #aaa; color:#888; font-size:9pt; padding:12px 8px;">${label}</span>`;
+  return (html || "")
+    .replace(NUMBER_PLACEHOLDER, '<span style="background:#fff3cd; padding:0 4px;">[nomor diberikan saat rilis]</span>')
+    .replace(CAP_TOKEN, () => box("Cap", 0))
+    .replace(TTD_TOKEN, () => box("Tanda tangan", 70));
 }

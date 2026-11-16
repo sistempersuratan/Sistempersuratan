@@ -7,6 +7,7 @@
 
 import { requireAuth, requireRole, logout, getEmailByUsername } from "./auth.js";
 import { showToast, setButtonLoading, mapAuthError } from "./ui.js";
+import { openRowMenu, makeRowsClickable } from "./row-menu.js";
 import { auth, db, firebaseConfig } from "./firebase-config.js";
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -21,6 +22,7 @@ import {
   doc,
   setDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -41,6 +43,10 @@ const fRole = document.getElementById("fRole");
 const emailField = document.getElementById("emailField");
 const passwordField = document.getElementById("passwordField");
 const saveBtn = document.getElementById("saveUserBtn");
+const fActive = document.getElementById("fActive");
+const activeField = document.getElementById("activeField");
+const resetField = document.getElementById("resetField");
+const resetPwBtn = document.getElementById("resetPwBtn");
 
 let currentAdminUid = null;
 let usersCache = [];
@@ -74,31 +80,22 @@ async function loadUsers() {
     renderUsers();
   } catch (error) {
     console.error("Gagal memuat daftar user:", error);
-    tableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="4" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
   }
 }
 
 function renderUsers() {
   if (usersCache.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Belum ada user.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="4" class="table-empty">Belum ada user.</td></tr>`;
     return;
   }
 
   tableBody.innerHTML = usersCache.map((u) => `
-    <tr>
+    <tr class="row-click" data-id="${u.id}" tabindex="0">
       <td>${escapeHtml(u.username || "-")}</td>
       <td>${escapeHtml(u.email || "-")}</td>
       <td><span class="badge ${u.role === "admin" ? "admin" : "user"}">${u.role === "admin" ? "Admin" : "User"}</span></td>
       <td><span class="badge ${u.active === false ? "inactive" : "user"}">${u.active === false ? "Nonaktif" : "Aktif"}</span></td>
-      <td>
-        <div class="row-actions">
-          <button class="link-btn" data-action="edit" data-id="${u.id}">Edit</button>
-          <button class="link-btn" data-action="reset" data-id="${u.id}">Reset Password</button>
-          <button class="link-btn ${u.active === false ? "" : "danger"}" data-action="toggle" data-id="${u.id}">
-            ${u.active === false ? "Aktifkan" : "Nonaktifkan"}
-          </button>
-        </div>
-      </td>
     </tr>
   `).join("");
 }
@@ -109,20 +106,25 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-tableBody.addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-action]");
-  if (!btn) return;
-  const userData = usersCache.find((u) => u.id === btn.dataset.id);
-  if (!userData) return;
-
-  if (btn.dataset.action === "edit") {
-    openEditModal(userData);
-  } else if (btn.dataset.action === "toggle") {
-    toggleActive(userData);
-  } else if (btn.dataset.action === "reset") {
-    resetPassword(userData);
-  }
+// Klik baris -> popup pilihan: Edit akun / Hapus akun.
+makeRowsClickable(tableBody, (id) => {
+  const userData = usersCache.find((u) => u.id === id);
+  if (userData) openUserMenu(userData);
 });
+
+function openUserMenu(userData) {
+  const isSelf = userData.id === currentAdminUid;
+  openRowMenu({
+    title: userData.username || "Akun",
+    meta: `${userData.email || "-"} · ${userData.role === "admin" ? "Admin" : "User"} · ${userData.active === false ? "Nonaktif" : "Aktif"}`,
+    sections: [{
+      items: [
+        { label: "Edit akun", primary: true, onClick: () => openEditModal(userData) },
+        { label: isSelf ? "Hapus akun (tidak bisa menghapus akun sendiri)" : "Hapus akun", danger: true, disabled: isSelf, onClick: () => deleteUser(userData) }
+      ]
+    }]
+  });
+}
 
 // ---------- Reset password (kirim email tautan reset) ----------
 
@@ -141,29 +143,46 @@ async function resetPassword(userData) {
   }
 }
 
-// ---------- Toggle aktif/nonaktif ----------
+// ---------- Hapus akun ----------
+// Menghapus PROFIL user di Firestore: user tidak bisa login lagi (aplikasi menolak akun tanpa
+// profil, dan username-nya tidak ditemukan saat login). Dokumen yang pernah dibuatnya tetap ada.
+// Akun login Firebase Authentication TIDAK ikut terhapus karena tidak bisa dilakukan dari browser;
+// hapus manual di Firebase Console > Authentication bila emailnya mau dipakai lagi.
+// Untuk menutup akses sementara dan masih bisa dibuka lagi, pakai status Nonaktif di Edit akun.
 
-async function toggleActive(userData) {
+async function deleteUser(userData) {
   if (userData.id === currentAdminUid) {
-    showToast("Anda tidak bisa menonaktifkan akun sendiri.", "error");
+    showToast("Anda tidak bisa menghapus akun sendiri.", "error");
     return;
   }
-  const nextActive = userData.active === false;
-  const label = nextActive ? "mengaktifkan" : "menonaktifkan";
-  if (!confirm(`Yakin ingin ${label} user "${userData.username}"?`)) return;
+  const activeAdmins = usersCache.filter((u) => u.role === "admin" && u.active !== false);
+  if (userData.role === "admin" && userData.active !== false && activeAdmins.length <= 1) {
+    showToast("Tidak bisa menghapus admin aktif terakhir.", "error");
+    return;
+  }
+  const ok = confirm(
+    `Hapus akun "${userData.username}"?\n\n` +
+    `• Akun ini tidak bisa login lagi dan tidak bisa dipulihkan.\n` +
+    `• Dokumen yang pernah dibuatnya tidak ikut terhapus.\n` +
+    `• Email ${userData.email || ""} baru bisa dipakai untuk akun baru setelah dihapus manual di Firebase Console (Authentication).\n\n` +
+    `Jika hanya ingin menutup akses sementara, pilih Edit akun lalu ubah status menjadi Nonaktif.`
+  );
+  if (!ok) return;
 
   try {
-    await updateDoc(doc(db, "users", userData.id), {
-      active: nextActive,
-      updatedAt: serverTimestamp()
-    });
-    showToast(`User berhasil di-${nextActive ? "aktifkan" : "nonaktifkan"}.`, "success");
+    await deleteDoc(doc(db, "users", userData.id));
+    showToast("Akun berhasil dihapus.", "success");
     loadUsers();
   } catch (error) {
-    console.error("Gagal ubah status user:", error);
-    showToast("Gagal menyimpan perubahan. Coba lagi.", "error");
+    console.error("Gagal menghapus akun:", error);
+    showToast("Gagal menghapus akun. Coba lagi.", "error");
   }
 }
+
+resetPwBtn.addEventListener("click", () => {
+  const current = usersCache.find((u) => u.id === docIdInput.value);
+  if (current) resetPassword(current);
+});
 
 // ---------- Modal: buka untuk tambah / edit ----------
 
@@ -183,6 +202,10 @@ function openAddModal() {
   passwordField.style.display = "";
   fEmail.disabled = false;
   fPassword.required = true;
+  activeField.style.display = "none";
+  resetField.style.display = "none";
+  fRole.disabled = false;
+  fActive.disabled = false;
   clearFormError();
   overlay.classList.add("show");
 }
@@ -199,6 +222,15 @@ function openEditModal(userData) {
   emailField.style.display = "none";
   passwordField.style.display = "none";
   fPassword.required = false;
+
+  // Status akun (aktif/nonaktif) dan reset password dipindah ke sini dari kolom tabel.
+  fActive.value = userData.active === false ? "inactive" : "active";
+  activeField.style.display = "";
+  resetField.style.display = userData.email ? "" : "none";
+  // Akun sendiri: role dan status dikunci agar admin tidak mengunci dirinya sendiri.
+  const isSelf = userData.id === currentAdminUid;
+  fRole.disabled = isSelf;
+  fActive.disabled = isSelf;
 
   clearFormError();
   overlay.classList.add("show");
@@ -253,6 +285,7 @@ form.addEventListener("submit", async (e) => {
       await updateDoc(doc(db, "users", docIdInput.value), {
         username,
         role,
+        active: fActive.value !== "inactive",
         updatedAt: serverTimestamp()
       });
       showToast("Perubahan user disimpan.", "success");

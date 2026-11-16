@@ -66,7 +66,7 @@ requireAuth((user, profile) => {
   userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
 
   if (templateId) {
-    editorTitle.textContent = "Edit Template";
+    editorTitle.textContent = "Edit Jenis Dokumen";
     loadExistingTemplate(templateId);
   } else {
     applyStarterTemplate();
@@ -98,7 +98,7 @@ async function loadExistingTemplate(id) {
   try {
     const snap = await getDoc(doc(db, "templates", id));
     if (!snap.exists()) {
-      showFormError("Template tidak ditemukan. Mungkin sudah dihapus.");
+      showFormError("Jenis dokumen tidak ditemukan. Mungkin sudah dihapus.");
       return;
     }
     const data = snap.data();
@@ -114,7 +114,7 @@ async function loadExistingTemplate(id) {
     renderCanvasFromHtml();
   } catch (error) {
     console.error("Gagal memuat template:", error);
-    showFormError("Gagal memuat data template. Coba refresh halaman.");
+    showFormError("Gagal memuat data jenis dokumen. Coba refresh halaman.");
   }
 }
 
@@ -205,15 +205,23 @@ fieldsList.addEventListener("click", (e) => {
   renderFields();
 });
 
+// Penanda posisi bawaan sistem (bukan isian): gambar dipasang admin saat dokumen terbit.
+const SYSTEM_CHIPS = [
+  { name: "ttd_gambar", label: "Posisi tanda tangan" },
+  { name: "cap_gambar", label: "Posisi cap" }
+];
+
 function renderPlaceholderChips() {
   const namedFields = fields.filter((f) => f.name);
-  if (namedFields.length === 0) {
-    placeholderChips.innerHTML = `<span class="chip-empty">Isi "Nama Field" dulu supaya muncul di sini.</span>`;
-    return;
-  }
-  placeholderChips.innerHTML = namedFields.map((f) =>
-    `<button type="button" class="chip" data-name="${escapeAttr(f.name)}">+ ${escapeAttr(f.label || f.name)}</button>`
+  const fieldChips = namedFields.length === 0
+    ? `<span class="chip-empty">Isi "Nama Field" dulu supaya muncul di sini.</span>`
+    : namedFields.map((f) =>
+        `<button type="button" class="chip" data-name="${escapeAttr(f.name)}">+ ${escapeAttr(f.label || f.name)}</button>`
+      ).join("");
+  const systemChips = SYSTEM_CHIPS.map((c) =>
+    `<button type="button" class="chip" data-name="${c.name}" title="Dipasang saat dokumen diterbitkan (atur di menu Tanda Tangan &amp; Cap)">+ ${c.label}</button>`
   ).join("");
+  placeholderChips.innerHTML = fieldChips + systemChips;
 }
 
 placeholderChips.addEventListener("click", (e) => {
@@ -221,7 +229,8 @@ placeholderChips.addEventListener("click", (e) => {
   if (!chip) return;
   const name = chip.dataset.name;
   const f = fields.find((x) => x.name === name);
-  const label = f ? (f.label || f.name) : name;
+  const sys = SYSTEM_CHIPS.find((c) => c.name === name);
+  const label = f ? (f.label || f.name) : (sys ? sys.label : name);
   insertFieldChipAtCursor(name, label);
 });
 
@@ -308,7 +317,7 @@ saveBtn.addEventListener("click", async () => {
   const html = tplHtml.value;
 
   if (!name) {
-    showFormError("Nama template wajib diisi.");
+    showFormError("Nama jenis dokumen wajib diisi.");
     return;
   }
   if (fields.some((f) => !f.name)) {
@@ -333,7 +342,7 @@ saveBtn.addEventListener("click", async () => {
     return;
   }
 
-  setButtonLoading(saveBtn, true, "Simpan Template");
+  setButtonLoading(saveBtn, true, "Simpan Jenis Dokumen");
 
   const payload = {
     name,
@@ -355,19 +364,19 @@ saveBtn.addEventListener("click", async () => {
   try {
     if (templateId) {
       await setDoc(doc(db, "templates", templateId), payload, { merge: true });
-      showToast("Template berhasil diperbarui.", "success");
+      showToast("Jenis dokumen berhasil diperbarui.", "success");
     } else {
       payload.active = true;
       payload.createdAt = serverTimestamp();
       await addDoc(collection(db, "templates"), payload);
-      showToast("Template baru berhasil dibuat.", "success");
+      showToast("Jenis dokumen baru berhasil dibuat.", "success");
     }
     window.location.href = "templates.html";
   } catch (error) {
     console.error("Gagal menyimpan template:", error);
-    showFormError("Gagal menyimpan template. Coba lagi.");
+    showFormError("Gagal menyimpan jenis dokumen. Coba lagi.");
   } finally {
-    setButtonLoading(saveBtn, false, "Simpan Template");
+    setButtonLoading(saveBtn, false, "Simpan Jenis Dokumen");
   }
 });
 

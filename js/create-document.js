@@ -12,6 +12,7 @@ import { renderTemplate, markNumberPlaceholder } from "./template-engine.js";
 const withoutSystemFields = (t) => ({ ...t, fields: (t.fields || []).filter((f) => f.name !== "nomor_surat") });
 import { db } from "./firebase-config.js";
 import {
+  deleteField,
   collection,
   getDocs,
   getDoc,
@@ -94,8 +95,8 @@ async function loadTemplates() {
     if (editId) await startEditMode();
   } catch (error) {
     console.error("Gagal memuat daftar template:", error);
-    templateSelect.innerHTML = `<option value="">Gagal memuat template</option>`;
-    showToast("Gagal memuat daftar template. Coba refresh halaman.", "error");
+    templateSelect.innerHTML = `<option value="">Gagal memuat jenis dokumen</option>`;
+    showToast("Gagal memuat daftar jenis dokumen. Coba refresh halaman.", "error");
   }
 }
 
@@ -118,7 +119,7 @@ async function startEditMode() {
     if (!tpl) {
       const tSnap = await getDoc(doc(db, "templates", d.templateId));
       if (!tSnap.exists()) {
-        showToast("Template dokumen ini sudah dihapus, dokumen tidak bisa diedit.", "error");
+        showToast("Jenis dokumen ini sudah dihapus, dokumen tidak bisa diedit.", "error");
         return;
       }
       tpl = withoutSystemFields({ id: tSnap.id, ...tSnap.data() });
@@ -136,9 +137,11 @@ async function startEditMode() {
       const el = document.getElementById(`field_${f.name}`);
       if (el && d.data && d.data[f.name] !== undefined) el.value = d.data[f.name];
     }
+    const finReq = document.getElementById("finishingRequest");
+    if (finReq && d.finishing && d.finishing.requested) finReq.value = d.finishing.requested;
 
     pageTitle.textContent = "Edit Dokumen";
-    pageSubtitle.textContent = "Ubah isian, lalu simpan. Setelah itu bisa diajukan ulang dari halaman Dokumen Saya.";
+    pageSubtitle.textContent = "Ubah isian, lalu simpan. Setelah itu bisa diajukan ulang dari halaman Arsip Dokumen.";
     saveBtn.textContent = "Simpan Perubahan";
   } catch (error) {
     console.error("Gagal memuat dokumen untuk diedit:", error);
@@ -148,11 +151,11 @@ async function startEditMode() {
 
 function renderTemplateOptions() {
   if (templatesCache.length === 0) {
-    templateSelect.innerHTML = `<option value="">Belum ada template aktif</option>`;
+    templateSelect.innerHTML = `<option value="">Belum ada jenis dokumen aktif</option>`;
     return;
   }
   templateSelect.innerHTML =
-    `<option value="">— Pilih template —</option>` +
+    `<option value="">— Pilih jenis dokumen —</option>` +
     templatesCache.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("");
 }
 
@@ -170,12 +173,27 @@ templateSelect.addEventListener("change", () => {
   formTitle.textContent = selectedTemplate.name;
   formDescription.textContent = selectedTemplate.description || "";
   buildFormFields(selectedTemplate.fields || []);
+  appendFinishingRequest();
   formPanel.style.display = "block";
 });
 
+// Jika admin mengizinkan, pengguna boleh MEMINTA kelengkapan TTD & cap.
+// Ini hanya permintaan: admin yang memutuskan, dan gambar baru dipasang saat terbit.
+function appendFinishingRequest() {
+  if (!selectedTemplate || selectedTemplate.finishingChoice !== "user") return;
+  documentForm.insertAdjacentHTML("beforeend", `
+    <label for="finishingRequest" style="display:block; font-weight:600; margin:14px 0 6px;">Kelengkapan dokumen</label>
+    <select id="finishingRequest" class="input">
+      <option value="">Ikuti pengaturan jenis dokumen</option>
+      <option value="complete">Lengkap (tanda tangan &amp; cap)</option>
+      <option value="plain">Tanpa tanda tangan &amp; cap</option>
+    </select>
+    <div class="field-hint">Ini permintaan saja. Admin yang memutuskan, dan tanda tangan/cap baru dipasang saat dokumen diterbitkan.</div>`);
+}
+
 function buildFormFields(fields) {
   if (fields.length === 0) {
-    documentForm.innerHTML = `<p class="subtitle">Template ini tidak punya field yang bisa diisi.</p>`;
+    documentForm.innerHTML = `<p class="subtitle">Jenis dokumen ini tidak punya isian.</p>`;
     return;
   }
 
@@ -232,13 +250,15 @@ previewBtn.addEventListener("click", () => {
 
 saveBtn.addEventListener("click", async () => {
   if (!selectedTemplate) {
-    showToast("Pilih template terlebih dahulu.", "error");
+    showToast("Pilih jenis dokumen terlebih dahulu.", "error");
     return;
   }
   const data = getFormData();
   if (!validateForm(data)) return;
 
   const renderedHtml = renderTemplate(selectedTemplate.html, data);
+  const finishingEl = document.getElementById("finishingRequest");
+  const finishingRequested = finishingEl ? finishingEl.value : "";
 
   const idleText = editingDocument ? "Simpan Perubahan" : "Simpan Dokumen";
   setButtonLoading(saveBtn, true, idleText, "Menyimpan...");
@@ -247,6 +267,7 @@ saveBtn.addEventListener("click", async () => {
       await updateDoc(doc(db, "documents", editingDocument.id), {
         data,
         renderedHtml,
+        ...(finishingEl ? { finishing: finishingRequested ? { requested: finishingRequested } : deleteField() } : {}),
         updatedAt: serverTimestamp()
       });
       showToast("Perubahan dokumen disimpan.", "success");
@@ -259,6 +280,7 @@ saveBtn.addEventListener("click", async () => {
       templateName: selectedTemplate.name,
       data,
       renderedHtml,
+      ...(finishingRequested ? { finishing: { requested: finishingRequested } } : {}),
       status: "draft",
       documentNumber: null,
       userId: currentUser.uid,

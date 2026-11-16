@@ -4,6 +4,7 @@
 
 import { requireAuth, requireRole, logout } from "./auth.js";
 import { showToast, setButtonLoading } from "./ui.js";
+import { openRowMenu, makeRowsClickable } from "./row-menu.js";
 import { DEFAULT_TEMPLATES } from "./default-templates.js";
 import { db } from "./firebase-config.js";
 import {
@@ -49,31 +50,22 @@ async function loadTemplates() {
     renderTemplates();
   } catch (error) {
     console.error("Gagal memuat daftar template:", error);
-    tableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="4" class="table-empty">Gagal memuat data. Coba refresh halaman.</td></tr>`;
   }
 }
 
 function renderTemplates() {
   if (templatesCache.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="5" class="table-empty">Belum ada template. Klik "+ Template Baru" untuk membuat.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="4" class="table-empty">Belum ada jenis dokumen. Klik "+ Jenis Dokumen Baru" untuk membuat.</td></tr>`;
     return;
   }
 
   tableBody.innerHTML = templatesCache.map((t) => `
-    <tr>
+    <tr class="row-click" data-id="${t.id}" tabindex="0">
       <td>${escapeHtml(t.name || "-")}</td>
       <td>${escapeHtml(t.category || "-")}</td>
       <td>${(t.fields || []).length}</td>
       <td><span class="badge ${t.active === false ? "inactive" : "user"}">${t.active === false ? "Nonaktif" : "Aktif"}</span></td>
-      <td>
-        <div class="row-actions">
-          <a class="link-btn" href="template-editor.html?id=${t.id}">Edit</a>
-          <button class="link-btn" data-action="toggle" data-id="${t.id}">
-            ${t.active === false ? "Aktifkan" : "Nonaktifkan"}
-          </button>
-          <button class="link-btn danger" data-action="delete" data-id="${t.id}">Hapus</button>
-        </div>
-      </td>
     </tr>
   `).join("");
 }
@@ -84,17 +76,21 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-tableBody.addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-action]");
-  if (!btn) return;
-  const tpl = templatesCache.find((t) => t.id === btn.dataset.id);
+// Klik baris -> popup pilihan: Edit / Aktifkan-Nonaktifkan / Hapus.
+makeRowsClickable(tableBody, (id) => {
+  const tpl = templatesCache.find((t) => t.id === id);
   if (!tpl) return;
-
-  if (btn.dataset.action === "toggle") {
-    toggleActive(tpl);
-  } else if (btn.dataset.action === "delete") {
-    deleteTemplate(tpl);
-  }
+  openRowMenu({
+    title: tpl.name || "Jenis dokumen",
+    meta: `${tpl.category || "-"} · ${(tpl.fields || []).length} isian · ${tpl.active === false ? "Nonaktif" : "Aktif"}`,
+    sections: [{
+      items: [
+        { label: "Edit jenis dokumen", primary: true, onClick: () => { window.location.href = `template-editor.html?id=${tpl.id}`; } },
+        { label: tpl.active === false ? "Aktifkan" : "Nonaktifkan", onClick: () => toggleActive(tpl) },
+        { label: "Hapus jenis dokumen", danger: true, onClick: () => deleteTemplate(tpl) }
+      ]
+    }]
+  });
 });
 
 async function toggleActive(tpl) {
@@ -104,7 +100,7 @@ async function toggleActive(tpl) {
       active: nextActive,
       updatedAt: serverTimestamp()
     });
-    showToast(`Template berhasil di-${nextActive ? "aktifkan" : "nonaktifkan"}.`, "success");
+    showToast(`Jenis dokumen berhasil di-${nextActive ? "aktifkan" : "nonaktifkan"}.`, "success");
     loadTemplates();
   } catch (error) {
     console.error("Gagal ubah status template:", error);
@@ -113,14 +109,14 @@ async function toggleActive(tpl) {
 }
 
 async function deleteTemplate(tpl) {
-  if (!confirm(`Yakin ingin menghapus template "${tpl.name}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+  if (!confirm(`Yakin ingin menghapus jenis dokumen "${tpl.name}"? Tindakan ini tidak bisa dibatalkan.`)) return;
   try {
     await deleteDoc(doc(db, "templates", tpl.id));
-    showToast("Template berhasil dihapus.", "success");
+    showToast("Jenis dokumen berhasil dihapus.", "success");
     loadTemplates();
   } catch (error) {
     console.error("Gagal hapus template:", error);
-    showToast("Gagal menghapus template. Coba lagi.", "error");
+    showToast("Gagal menghapus jenis dokumen. Coba lagi.", "error");
   }
 }
 
@@ -179,7 +175,7 @@ importSelectAll.addEventListener("change", () => {
 importConfirmBtn.addEventListener("click", async () => {
   const keys = [...importList.querySelectorAll(".import-check:checked")].map((c) => c.value);
   if (keys.length === 0) {
-    showToast("Pilih minimal satu template.", "error");
+    showToast("Pilih minimal satu jenis dokumen.", "error");
     return;
   }
 
@@ -205,7 +201,7 @@ importConfirmBtn.addEventListener("click", async () => {
   setButtonLoading(importConfirmBtn, false, "Impor", "Mengimpor...");
 
   closeImportDialog();
-  if (ok > 0) showToast(`${ok} template berhasil diimpor.`, "success");
-  if (failed > 0) showToast(`${failed} template gagal diimpor. Coba lagi.`, "error");
+  if (ok > 0) showToast(`${ok} jenis dokumen berhasil diimpor.`, "success");
+  if (failed > 0) showToast(`${failed} jenis dokumen gagal diimpor. Coba lagi.`, "error");
   loadTemplates();
 });

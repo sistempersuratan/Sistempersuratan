@@ -1,25 +1,16 @@
 // ===========================================================
-// dashboard.js — Logic halaman dashboard.html (role: user)
+// dashboard.js — Halaman dashboard.html (role: user)
+// Tampilan ada di dashboard-view.js (dipakai bersama dashboard admin).
 // ===========================================================
 
 import { requireAuth, requireRole, logout } from "./auth.js";
 import { showToast } from "./ui.js";
-import { db } from "./firebase-config.js";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  getCountFromServer
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { renderDashboard } from "./dashboard-view.js";
 
 const greeting = document.getElementById("greeting");
 const userName = document.getElementById("userName");
 const userInitial = document.getElementById("userInitial");
 const logoutButtons = document.querySelectorAll(".js-logout");
-const statTemplates = document.getElementById("statTemplates");
-const statMyDocs = document.getElementById("statMyDocs");
-const statMonthDocs = document.getElementById("statMonthDocs");
 
 requireAuth((user, profile) => {
   if (!requireRole(profile.role, "user")) return;
@@ -28,7 +19,7 @@ requireAuth((user, profile) => {
   userName.textContent = profile.username || user.email;
   userInitial.textContent = (profile.username || user.email || "?").charAt(0).toUpperCase();
 
-  loadStats(user.uid);
+  renderDashboard(document.getElementById("dashboardRoot"), { role: "user", uid: user.uid });
 });
 
 logoutButtons.forEach((btn) => {
@@ -41,31 +32,3 @@ logoutButtons.forEach((btn) => {
     }
   });
 });
-
-async function loadStats(uid) {
-  try {
-    const snap = await getCountFromServer(query(collection(db, "templates"), where("active", "==", true)));
-    statTemplates.textContent = snap.data().count;
-  } catch (error) {
-    console.error("Gagal hitung template:", error);
-    statTemplates.textContent = "-";
-  }
-
-  try {
-    const docsSnap = await getDocs(query(collection(db, "documents"), where("userId", "==", uid)));
-    const docs = docsSnap.docs.map((d) => d.data());
-    statMyDocs.textContent = docs.length;
-
-    const now = new Date();
-    const monthCount = docs.filter((d) => {
-      if (!d.createdAt || !d.createdAt.toDate) return false;
-      const dt = d.createdAt.toDate();
-      return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
-    }).length;
-    statMonthDocs.textContent = monthCount;
-  } catch (error) {
-    console.error("Gagal hitung dokumen:", error);
-    statMyDocs.textContent = "-";
-    statMonthDocs.textContent = "-";
-  }
-}

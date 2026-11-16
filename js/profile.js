@@ -23,6 +23,13 @@ const logoutButtons = document.querySelectorAll(".js-logout");
 const infoUsername = document.getElementById("infoUsername");
 const infoEmail = document.getElementById("infoEmail");
 const infoRole = document.getElementById("infoRole");
+const infoStatus = document.getElementById("infoStatus");
+const infoCreated = document.getElementById("infoCreated");
+const infoLastLogin = document.getElementById("infoLastLogin");
+const strengthFill = document.getElementById("strengthFill");
+const strengthText = document.getElementById("strengthText");
+const ruleItems = document.querySelectorAll("#ruleList li");
+const confirmHint = document.getElementById("confirmHint");
 
 const form = document.getElementById("passwordForm");
 const currentPassword = document.getElementById("currentPassword");
@@ -42,9 +49,15 @@ requireAuth((user, profile) => {
   userRoleBadge.textContent = isAdmin ? "Admin" : "User";
   userRoleBadge.className = `badge ${isAdmin ? "admin" : "user"}`;
 
-  infoUsername.value = profile.username || "-";
-  infoEmail.value = profile.email || user.email || "-";
-  infoRole.value = isAdmin ? "Admin" : "User";
+  // Email & waktu akun diambil dari akun login (Firebase Auth) yang sebenarnya.
+  infoUsername.textContent = profile.username || "-";
+  infoEmail.textContent = user.email || profile.email || "-";
+  infoRole.textContent = isAdmin ? "Admin" : "User";
+  infoStatus.innerHTML = profile.active === false
+    ? '<span class="badge inactive">Nonaktif</span>'
+    : '<span class="badge user">Aktif</span>';
+  infoCreated.textContent = formatAuthTime(user.metadata && user.metadata.creationTime);
+  infoLastLogin.textContent = formatAuthTime(user.metadata && user.metadata.lastSignInTime);
 
   if (isAdmin) adminOnlyEls.forEach((el) => (el.style.display = ""));
 
@@ -82,7 +95,7 @@ function mapPasswordError(error) {
     case "auth/invalid-credential":
       return "Password saat ini salah.";
     case "auth/weak-password":
-      return "Password baru terlalu lemah (minimal 6 karakter).";
+      return "Password baru terlalu lemah. Gunakan minimal 8 karakter dengan huruf dan angka.";
     case "auth/too-many-requests":
       return "Terlalu banyak percobaan. Coba lagi beberapa saat lagi.";
     case "auth/requires-recent-login":
@@ -107,8 +120,9 @@ form.addEventListener("submit", async (e) => {
     showError("Semua kolom wajib diisi.");
     return;
   }
-  if (next.length < 6) {
-    showError("Password baru minimal 6 karakter.");
+  const check = checkPassword(next);
+  if (!check.len || !check.letter || !check.digit) {
+    showError("Password baru belum memenuhi syarat: minimal 8 karakter, ada huruf dan angka.");
     return;
   }
   if (next !== confirm) {
@@ -126,10 +140,61 @@ form.addEventListener("submit", async (e) => {
     await reauthenticateWithCredential(currentUser, credential);
     await updatePassword(currentUser, next);
     form.reset();
-    showToast("Password berhasil diubah.", "success");
+    updateStrength();
+    updateConfirmHint();
+    showToast("Password berhasil diubah. Gunakan password baru saat login berikutnya.", "success");
   } catch (error) {
     showError(mapPasswordError(error));
   } finally {
     setButtonLoading(saveBtn, false, "Simpan Password");
   }
 });
+
+
+// ---------- Kekuatan password ----------
+
+function formatAuthTime(value) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function checkPassword(pw) {
+  return {
+    len: pw.length >= 8,
+    letter: /[A-Za-z]/.test(pw),
+    digit: /\d/.test(pw)
+  };
+}
+
+function updateStrength() {
+  const pw = newPassword.value;
+  const c = checkPassword(pw);
+  ruleItems.forEach((li) => li.classList.toggle("ok", !!c[li.dataset.rule]));
+
+  if (!pw) {
+    strengthFill.style.width = "0";
+    strengthText.textContent = "Belum diisi";
+    return;
+  }
+  let score = 0;
+  if (c.len) score++;
+  if (c.letter && c.digit) score++;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw) || pw.length >= 12) score++;
+  const levels = ["Lemah", "Lemah", "Cukup", "Kuat", "Sangat kuat"];
+  strengthFill.style.width = `${Math.max(score, 1) * 25}%`;
+  strengthText.textContent = levels[score];
+}
+
+function updateConfirmHint() {
+  if (!confirmPassword.value) {
+    confirmHint.textContent = "";
+    return;
+  }
+  confirmHint.textContent = confirmPassword.value === newPassword.value ? "Password cocok." : "Password belum sama.";
+}
+
+newPassword.addEventListener("input", () => { updateStrength(); updateConfirmHint(); });
+confirmPassword.addEventListener("input", updateConfirmHint);
